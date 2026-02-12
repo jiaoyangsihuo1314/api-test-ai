@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import { logger, OperationType } from '@/lib/logger';
 import { getExecutorUrl } from '@/lib/config';
 
@@ -46,6 +47,8 @@ export async function GET(request: Request) {
             executions: true,
           },
         },
+        createdByUser: { select: { id: true, username: true, realName: true } },
+        updatedByUser: { select: { id: true, username: true, realName: true } },
       },
       orderBy: {
         createdAt: 'desc',
@@ -119,6 +122,9 @@ export async function POST(request: Request) {
   const startTime = Date.now();
   
   try {
+    const currentUser = await getCurrentUser(request);
+    const userId = currentUser?.user?.id ?? null;
+
     const body = await request.json();
     const {
       name,
@@ -155,6 +161,7 @@ export async function POST(request: Request) {
         executionMode,
         scheduleConfig: scheduleConfig ? JSON.stringify(scheduleConfig) : null,
         scheduleStatus: executionMode === 'scheduled' ? (scheduleStatus || 'active') : null,
+        ...(userId && { createdBy: userId, updatedBy: userId }),
       },
     });
 

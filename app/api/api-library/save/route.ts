@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import { CapturedApi } from '@/types/har';
 import { safeJsonStringify } from '@/lib/json-utils';
 import { parameterizePath } from '@/lib/path-parameterization';
@@ -13,6 +14,9 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
+    const currentUser = await getCurrentUser(request);
+    const userId = currentUser?.user?.id ?? null;
+
     const body = await request.json();
     const { apis } = body as { apis: Array<CapturedApi & { 
       id?: string;
@@ -125,7 +129,7 @@ export async function POST(request: NextRequest) {
             try {
               savedApi = await prisma.api.update({
                 where: { id: api.id },
-                data: apiData,
+                data: { ...apiData, ...(userId && { updatedBy: userId }) },
         });
               console.log(`✅ [覆盖成功] API已更新: ${savedApi.id} - ${savedApi.name}`);
             } catch (updateError: any) {
@@ -136,7 +140,7 @@ export async function POST(request: NextRequest) {
             // 创建新API
             console.log(`➕ [创建模式] 创建新API: ${api.name}`);
             savedApi = await prisma.api.create({
-              data: apiData,
+              data: { ...apiData, ...(userId && { createdBy: userId, updatedBy: userId }) },
             });
             console.log(`✅ [创建成功] API已创建: ${savedApi.id} - ${savedApi.name}`);
           }

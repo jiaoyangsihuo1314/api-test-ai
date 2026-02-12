@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import { safeJsonParse, safeJsonStringify } from '@/lib/json-utils';
 import { logger, OperationType } from '@/lib/logger';
 
@@ -55,6 +56,8 @@ export async function GET(
             order: 'asc',
           },
         },
+        createdByUser: { select: { id: true, username: true, realName: true } },
+        updatedByUser: { select: { id: true, username: true, realName: true } },
       },
     });
 
@@ -117,6 +120,9 @@ export async function PUT(
   const { id } = await params;
   
   try {
+    const currentUser = await getCurrentUser(request);
+    const userId = currentUser?.user?.id ?? null;
+
     const body = await request.json();
     const { name, description, status, category, tags, flowConfig, steps } = body;
 
@@ -148,6 +154,7 @@ export async function PUT(
           category: category || null,
           tags: safeJsonStringify(tags),
           flowConfig: safeJsonStringify(cleanedFlowConfig),
+          ...(userId && { updatedBy: userId }),
           steps: {
             create: steps?.map((step: any, index: number) => ({
               name: step.name,

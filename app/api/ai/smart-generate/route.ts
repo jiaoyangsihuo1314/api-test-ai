@@ -135,6 +135,11 @@ export async function POST(request: NextRequest) {
   try {
     const { userInput, testType = 'api' } = await request.json();
 
+    // 当前用户 ID，用于 AI 生成的用例编排设置创建人/更新人
+    const { getCurrentUser } = await import('@/lib/auth');
+    const currentUser = await getCurrentUser(request);
+    const currentUserId = currentUser?.user?.id ?? null;
+
     if (!userInput || !userInput.trim()) {
           sendSSE(controller, {
             type: 'error',
@@ -357,9 +362,10 @@ export async function POST(request: NextRequest) {
               console.log('📥 [Route] 完整参数:', JSON.stringify(functionArgs, null, 2));
               console.log('='.repeat(120) + '\n');
               
-              // 调用函数并传入进度回调
+              // 调用函数并传入进度回调和当前用户 ID（用于创建人/更新人）
               functionResult = await assembleAndCreateTestCases({
                 ...functionArgs,
+                userId: currentUserId,
                 onProgress: (progress) => {
                   console.log(`📊 [Route] 进度更新: ${progress.step}/${progress.totalSteps} - ${progress.message}`);
                   if (progress.detail) {

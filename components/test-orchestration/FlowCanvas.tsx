@@ -394,7 +394,6 @@ export default function FlowCanvas({
         onPaneClick={handlePaneClickInternal}
         onInit={setReactFlowInstance}
         nodeTypes={nodeTypes}
-        edgesDeletable={true}
         deleteKeyCode="Delete"
         fitView
         className="bg-background"

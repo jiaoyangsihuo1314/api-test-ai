@@ -11,13 +11,12 @@ import {
   Filter, 
   ChevronLeft, 
   ChevronRight,
-  Folder,
-  FolderOpen,
   FileCode
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
+import { TestCaseTree } from './TestCaseTree';
 
 interface TestCase {
   id: string;
@@ -25,6 +24,9 @@ interface TestCase {
   description?: string;
   status: string;
   category?: string;
+  platform?: string;
+  component?: string;
+  feature?: string;
 }
 
 interface TestCaseSelectorProps {
@@ -43,7 +45,6 @@ export function TestCaseSelector({
   // 状态管理
   const [loading, setLoading] = useState(false);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -52,7 +53,7 @@ export function TestCaseSelector({
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 10;
 
-  // 全局测试用例（用于搜索）
+  // 全局测试用例（用于搜索和分类树）
   const [allTestCases, setAllTestCases] = useState<TestCase[]>([]);
 
   // 加载数据
@@ -74,16 +75,6 @@ export function TestCaseSelector({
         // 只显示发布状态的测试用例
         const publishedCases = result.data.filter((tc: TestCase) => tc.status === 'active');
         setAllTestCases(publishedCases);
-        
-        // 提取分类
-        const uniqueCategories = Array.from(
-          new Set(
-            publishedCases
-              .map((tc: TestCase) => tc.category)
-              .filter((c: string | undefined) => c)
-          )
-        ) as string[];
-        setCategories(uniqueCategories);
       }
     } catch (error) {
       console.error('Error loading test cases:', error);
@@ -100,19 +91,46 @@ export function TestCaseSelector({
   const filterTestCases = () => {
     let filtered = [...allTestCases];
 
-    // 分类筛选
+    // 分类筛选（基于四层分类结构）
     if (selectedCategory) {
-      filtered = filtered.filter(tc => tc.category === selectedCategory);
+      // 处理"未分类"情况
+      if (selectedCategory === 'uncategorized') {
+        filtered = filtered.filter(tc => !(tc as any).platform && !(tc as any).component && !(tc as any).feature);
+      } else {
+        // 解析分类路径
+        const parts = selectedCategory.split('/');
+        filtered = filtered.filter(tc => {
+          const tcAny = tc as any;
+          if (parts.length === 1) {
+            // 只选择了平台
+            return tcAny.platform === parts[0];
+          } else if (parts.length === 2) {
+            // 选择了平台和组件
+            return tcAny.platform === parts[0] && tcAny.component === parts[1];
+          } else if (parts.length === 3) {
+            // 选择了平台、组件和功能
+            return tcAny.platform === parts[0] && tcAny.component === parts[1] && tcAny.feature === parts[2];
+          }
+          return false;
+        });
+      }
     }
 
     // 搜索筛选（全局搜索）
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
-        tc =>
-          tc.name.toLowerCase().includes(term) ||
-          (tc.description && tc.description.toLowerCase().includes(term)) ||
-          (tc.category && tc.category.toLowerCase().includes(term))
+        tc => {
+          const tcAny = tc as any;
+          return (
+            tc.name.toLowerCase().includes(term) ||
+            (tc.description && tc.description.toLowerCase().includes(term)) ||
+            (tc.category && tc.category.toLowerCase().includes(term)) ||
+            (tcAny.platform && tcAny.platform.toLowerCase().includes(term)) ||
+            (tcAny.component && tcAny.component.toLowerCase().includes(term)) ||
+            (tcAny.feature && tcAny.feature.toLowerCase().includes(term))
+          );
+        }
       );
     }
 
@@ -165,68 +183,16 @@ export function TestCaseSelector({
 
   return (
     <div className="flex h-[600px] border border-[#e5e7eb] dark:border-[#4b5563] rounded-lg overflow-hidden">
-      {/* 左侧分类树 */}
-      <div className="w-64 flex-shrink-0 border-r border-[#e5e7eb] dark:border-[#4b5563] bg-muted/10 flex flex-col">
-        <div className="p-4 border-b border-[#e5e7eb] dark:border-[#4b5563]">
-          <h3 className="font-semibold text-sm mb-3">{t('categoryFilter')}</h3>
-          <div className="space-y-1">
-            <button
-              onClick={() => {
-                setSelectedCategory(undefined);
-                setCurrentPage(1);
-              }}
-              className={cn(
-                "w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors",
-                !selectedCategory
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <Folder className="h-4 w-4" />
-                <span>{t('allCases')}</span>
-              </div>
-              <Badge variant={!selectedCategory ? "secondary" : "outline"}>
-                {allTestCases.length}
-              </Badge>
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-1">
-            {categories.map((category) => {
-              const count = allTestCases.filter(tc => tc.category === category).length;
-              return (
-                <button
-                  key={category}
-                  onClick={() => {
-                    setSelectedCategory(category);
-                    setCurrentPage(1);
-                  }}
-                  className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors",
-                    selectedCategory === category
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted"
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    {selectedCategory === category ? (
-                      <FolderOpen className="h-4 w-4" />
-                    ) : (
-                      <Folder className="h-4 w-4" />
-                    )}
-                    <span className="truncate">{category}</span>
-                  </div>
-                  <Badge variant={selectedCategory === category ? "secondary" : "outline"}>
-                    {count}
-                  </Badge>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      {/* 左侧分类树 - 使用新的 TestCaseTree 组件 */}
+      <div className="w-64 flex-shrink-0">
+        <TestCaseTree
+          testCases={allTestCases}
+          selectedCategory={selectedCategory}
+          onCategoryChange={(category) => {
+            setSelectedCategory(category);
+            setCurrentPage(1);
+          }}
+        />
       </div>
 
       {/* 右侧内容区 */}

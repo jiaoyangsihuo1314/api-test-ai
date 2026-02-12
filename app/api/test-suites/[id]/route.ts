@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import { logger, OperationType } from '@/lib/logger';
 import { getExecutorUrl } from '@/lib/config';
 
@@ -51,6 +52,8 @@ export async function GET(
           },
           take: 10, // 只返回最近10次执行
         },
+        createdByUser: { select: { id: true, username: true, realName: true } },
+        updatedByUser: { select: { id: true, username: true, realName: true } },
       },
     });
 
@@ -124,6 +127,9 @@ export async function PUT(
       scheduleStatus,
     } = body;
 
+    const currentUser = await getCurrentUser(request);
+    const userId = currentUser?.user?.id ?? null;
+
     // 更新测试套件基本信息
     const updateData: any = {
       name,
@@ -133,6 +139,7 @@ export async function PUT(
       tags: tags ? JSON.stringify(tags) : null,
       useGlobalSettings,
       environmentConfig: environmentConfig || null,
+      ...(userId && { updatedBy: userId }),
     };
 
     // 如果有调度相关字段，也更新它们

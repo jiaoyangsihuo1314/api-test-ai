@@ -22,6 +22,7 @@ interface ExecutionRecord {
   failedSteps: number;
   duration?: number;
   triggeredBy: string;
+  triggerUser?: string | null;
   environmentSnapshot: any;
 }
 
@@ -45,6 +46,7 @@ export default function TestSuiteHistoryPage() {
   const router = useRouter();
   const { toast } = useToast();
   const t = useTranslations('testSuites');
+  const tCommon = useTranslations('common');
   const suiteId = params.id as string;
 
   const [suite, setSuite] = useState<any>(null);
@@ -225,6 +227,11 @@ export default function TestSuiteHistoryPage() {
                                   ? t('globalConfig')
                                   : t('independentConfig')}
                               </Badge>
+                            )}
+                            {execution.triggerUser && (
+                              <span className="text-sm text-muted-foreground">
+                                {tCommon('triggerUser')}: {execution.triggerUser}
+                              </span>
                             )}
                           </div>
 

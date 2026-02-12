@@ -23,6 +23,8 @@ interface Conversation {
   isStarred: boolean;
   isArchived: boolean;
   _count?: { messages: number };
+  createdByUser?: { id: string; username: string; realName?: string | null };
+  updatedByUser?: { id: string; username: string; realName?: string | null };
 }
 
 interface ConversationListProps {

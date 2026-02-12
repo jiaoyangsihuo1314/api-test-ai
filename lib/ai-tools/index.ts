@@ -174,8 +174,10 @@ export async function smartSearchDeleteApi(params: {
 
 /**
  * 创建测试用例
+ * @param testCases 测试用例数据
+ * @param userId 当前用户 ID，用于设置创建人/更新人（如 AI 生成时传入当前登录用户）
  */
-export async function createTestCases(testCases: any[]) {
+export async function createTestCases(testCases: any[], userId?: string | null) {
   const created = await Promise.all(
     testCases.map(async (testCase: any) => {
       // 确保 flowConfig 中的所有节点都有 data 字段
@@ -199,6 +201,7 @@ export async function createTestCases(testCases: any[]) {
           category: testCase.category,
           tags: JSON.stringify(testCase.tags || []),
           flowConfig: JSON.stringify(flowConfig),
+          ...(userId && { createdBy: userId, updatedBy: userId }),
         },
       });
 
@@ -251,8 +254,10 @@ export type ProgressCallback = (progress: {
 export async function assembleAndCreateTestCases(params: {
   orchestrationPlan: OrchestrationPlan;
   onProgress?: ProgressCallback;
+  /** 当前用户 ID，用于设置创建人/更新人（AI 生成时传入当前登录用户） */
+  userId?: string | null;
 }) {
-  const { orchestrationPlan, onProgress } = params;
+  const { orchestrationPlan, onProgress, userId } = params;
   
   console.log('\n' + '▓'.repeat(120));
   console.log('🤖 [AI Tools] 收到编排指令，开始自动组装测试用例');
@@ -379,7 +384,7 @@ export async function assembleAndCreateTestCases(params: {
     detail: `正在保存 ${assembledTestCases.length} 个测试用例...`
   });
   
-  const created = await createTestCases(assembledTestCases);
+  const created = await createTestCases(assembledTestCases, userId);
   console.log(`✅ [AI Tools] 保存成功，已创建 ${created.length} 个测试用例`);
   
   created.forEach((tc, index) => {

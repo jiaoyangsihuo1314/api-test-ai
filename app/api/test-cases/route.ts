@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import { safeJsonParse, safeJsonStringify } from '@/lib/json-utils';
 import { logger, OperationType } from '@/lib/logger';
 
@@ -58,10 +59,22 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         steps: {
+          include: {
+            api: {
+              select: {
+                id: true,
+                platform: true,
+                component: true,
+                feature: true,
+              },
+            },
+          },
           orderBy: {
             order: 'asc',
           },
         },
+        createdByUser: { select: { id: true, username: true, realName: true } },
+        updatedByUser: { select: { id: true, username: true, realName: true } },
       },
       orderBy: {
         updatedAt: 'desc',
@@ -71,15 +84,29 @@ export async function GET(request: NextRequest) {
     });
 
     // 解析 JSON 字符串字段（数据库中是 TEXT 类型）
-    const parsedTestCases = testCases.map((testCase: any) => ({
-      ...testCase,
-      flowConfig: safeJsonParse(testCase.flowConfig),
-      tags: safeJsonParse(testCase.tags),
-      steps: testCase.steps.map((step: any) => ({
-        ...step,
-        config: safeJsonParse(step.config),
-      })),
-    }));
+    const parsedTestCases = testCases.map((testCase: any) => {
+      // 从步骤中的API提取分类信息（取第一个有API的步骤）
+      let platform, component, feature;
+      const firstApiStep = testCase.steps.find((step: any) => step.api);
+      if (firstApiStep && firstApiStep.api) {
+        platform = firstApiStep.api.platform;
+        component = firstApiStep.api.component;
+        feature = firstApiStep.api.feature;
+      }
+      
+      return {
+        ...testCase,
+        platform,
+        component,
+        feature,
+        flowConfig: safeJsonParse(testCase.flowConfig),
+        tags: safeJsonParse(testCase.tags),
+        steps: testCase.steps.map((step: any) => ({
+          ...step,
+          config: safeJsonParse(step.config),
+        })),
+      };
+    });
 
     const duration = Date.now() - startTime;
     logger.apiResponse('GET', '/api/test-cases', OperationType.READ, 200, duration);
@@ -112,6 +139,9 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
   
   try {
+    const currentUser = await getCurrentUser(request);
+    const userId = currentUser?.user?.id ?? null;
+
     const body = await request.json();
     const { name, description, status, category, tags, flowConfig, steps } = body;
 
@@ -132,6 +162,7 @@ export async function POST(request: NextRequest) {
         category: category || null,
         tags: safeJsonStringify(tags),
         flowConfig: safeJsonStringify(cleanedFlowConfig) || '{}',
+        ...(userId && { createdBy: userId, updatedBy: userId }),
         steps: {
           create: steps?.map((step: any, index: number) => ({
             name: step.name,

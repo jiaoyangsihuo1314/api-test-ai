@@ -28,6 +28,8 @@ interface TestSuite {
   scheduleConfig?: string;
   scheduleStatus?: string;
   nextRunTime?: string;
+  createdByUser?: { id: string; username: string; realName?: string | null };
+  updatedByUser?: { id: string; username: string; realName?: string | null };
 }
 
 export default function TestSuitesPage() {
@@ -217,6 +219,13 @@ export default function TestSuitesPage() {
                         {suite.lastExecution && (
                           <> · {t('lastRun')} {new Date(suite.lastExecution.time).toLocaleString()}</>
                         )}
+                        {(suite.createdByUser || suite.updatedByUser) && (
+                          <span className="block mt-1 text-xs">
+                            {suite.createdByUser && <span>{tCommon('createdBy')}: {suite.createdByUser.username}</span>}
+                            {suite.createdByUser && suite.updatedByUser && ' · '}
+                            {suite.updatedByUser && <span>{tCommon('updatedBy')}: {suite.updatedByUser.username}</span>}
+                          </span>
+                        )}
                       </CardDescription>
                       {suite.description && (
                         <p className="text-sm text-muted-foreground mt-1">
@@ -338,4 +347,3 @@ export default function TestSuitesPage() {
     </div>
   );
 }
-

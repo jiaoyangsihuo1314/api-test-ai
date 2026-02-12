@@ -20,6 +20,7 @@ export default function AIGeneratePage() {
   const [loading, setLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [conversationNeedsRefresh, setConversationNeedsRefresh] = useState(0); // 用于触发对话列表刷新
+  const [currentConversationMeta, setCurrentConversationMeta] = useState<{ title?: string; createdByUser?: { username: string }; updatedByUser?: { username: string } } | null>(null);
   const { toast } = useToast();
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -68,10 +69,31 @@ export default function AIGeneratePage() {
     }
   };
 
+  // 加载对话详情（用于展示创建人/更新人）
+  const loadConversationDetail = async (id: string) => {
+    try {
+      const res = await fetch(`/api/conversations/${id}`);
+      const data = await res.json();
+      if (data.success && data.data) {
+        setCurrentConversationMeta({
+          title: data.data.title,
+          createdByUser: data.data.createdByUser,
+          updatedByUser: data.data.updatedByUser,
+        });
+      } else {
+        setCurrentConversationMeta(null);
+      }
+    } catch {
+      setCurrentConversationMeta(null);
+    }
+  };
+
   // 选择对话
   const handleSelectConversation = async (id: string) => {
     setCurrentConversationId(id);
+    setCurrentConversationMeta(null);
     await loadMessages(id);
+    if (id) loadConversationDetail(id);
     setIsSidebarOpen(false);
   };
 
@@ -91,6 +113,7 @@ export default function AIGeneratePage() {
       if (data.success) {
         setCurrentConversationId(data.data.id);
         setMessages([]);
+        setCurrentConversationMeta(data.data.createdByUser || data.data.updatedByUser ? { title: data.data.title, createdByUser: data.data.createdByUser, updatedByUser: data.data.updatedByUser } : null);
         setIsSidebarOpen(false);
         setConversationNeedsRefresh(prev => prev + 1); // 触发列表刷新
       }
@@ -109,6 +132,7 @@ export default function AIGeneratePage() {
     if (id === currentConversationId) {
       setCurrentConversationId(null);
       setMessages([]);
+      setCurrentConversationMeta(null);
     }
     setConversationNeedsRefresh(prev => prev + 1); // 触发列表刷新
     toast({
@@ -511,6 +535,14 @@ export default function AIGeneratePage() {
           </Button>
           <span className="text-sm text-muted-foreground">{t('pageSubtitle')}</span>
         </div>
+
+        {/* 当前对话信息（创建人/更新人） */}
+        {currentConversationId && currentConversationMeta && (currentConversationMeta.createdByUser || currentConversationMeta.updatedByUser) && (
+          <div className="px-4 py-2 border-b border-border bg-muted/30 text-xs text-muted-foreground flex items-center gap-4">
+            {currentConversationMeta.createdByUser && <span>{tCommon('createdBy')}: {currentConversationMeta.createdByUser.username}</span>}
+            {currentConversationMeta.updatedByUser && <span>{tCommon('updatedBy')}: {currentConversationMeta.updatedByUser.username}</span>}
+          </div>
+        )}
 
         {/* AI生成中的警告提示 */}
         {loading && (

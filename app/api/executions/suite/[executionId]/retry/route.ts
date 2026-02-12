@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import { logger, OperationType } from '@/lib/logger';
 import { getExecutorUrl } from '@/lib/config';
 
@@ -9,6 +10,10 @@ export async function POST(
   { params }: { params: Promise<{ executionId: string }> }
 ) {
   try {
+    const currentUser = await getCurrentUser(request);
+    const triggerUserId = currentUser?.user?.id ?? null;
+    const triggerUser = currentUser?.user?.username ?? null;
+
     const { executionId } = await params;
 
     // 1. 查询原执行记录
@@ -132,6 +137,8 @@ export async function POST(
         totalCases: testSuite.testCases.length,
         totalSteps,
         triggeredBy: 'retry',
+        ...(triggerUserId && { triggerUserId }),
+        ...(triggerUser && { triggerUser }),
       },
     });
 

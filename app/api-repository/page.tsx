@@ -359,6 +359,7 @@ export default function ApiRepositoryPage() {
       const result = await response.json();
       if (result.success) {
         fetchApis();
+        fetchAllApis(); // 更新左侧树数据，使收藏统计正确
         toast({
           title: api.isStarred ? t('unstarred') : t('starred'),
         });
@@ -476,89 +477,82 @@ export default function ApiRepositoryPage() {
 
       {/* 右侧内容区 */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* 顶部工具栏 */}
-        <div className="p-6 border-b border-[#e5e7eb] dark:border-[#4b5563] bg-background space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-muted-foreground">
+        {/* 顶部工具栏：单行布局，左侧统计+搜索，右侧操作按钮分组 */}
+        <div className="p-4 border-b border-[#e5e7eb] dark:border-[#4b5563] bg-background">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* 左侧：统计与搜索 */}
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <span className="text-sm text-muted-foreground whitespace-nowrap">
                 {t('totalApis')} {pagination.total} {t('apis')}
+              </span>
+              {selectedApiIds.size > 0 && (
+                <span className="text-sm text-primary font-medium whitespace-nowrap">
+                  已选 {selectedApiIds.size} 个
+                </span>
+              )}
+              <div className="relative flex-1 min-w-[200px] max-w-md">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder={t('searchPlaceholder')}
+                  className="pl-9 h-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
               </div>
-              {selectedApiIds.size > 0 && (
-                <div className="text-sm text-primary font-medium">
-                  已选择 {selectedApiIds.size} 个API
-                </div>
-              )}
+              <Select value={methodFilter} onValueChange={setMethodFilter}>
+                <SelectTrigger className="w-[130px] h-9">
+                  <SelectValue placeholder={t('methodFilter')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">{t('allMethods')}</SelectItem>
+                  <SelectItem value="GET">GET</SelectItem>
+                  <SelectItem value="POST">POST</SelectItem>
+                  <SelectItem value="PUT">PUT</SelectItem>
+                  <SelectItem value="DELETE">DELETE</SelectItem>
+                  <SelectItem value="PATCH">PATCH</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={handleSearch} size="sm" variant="secondary" className="h-9 shrink-0">
+                <Filter className="mr-1.5 h-4 w-4" />
+                {t('search')}
+              </Button>
             </div>
-            <div className="flex items-center gap-2">
-              {selectedApiIds.size > 0 && (
-                <Button 
-                  onClick={handleBatchDelete} 
-                  variant="destructive" 
-                  size="sm"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  删除选中
+
+            {/* 右侧：操作按钮（批量操作 | 主操作） */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 border-r border-[#e5e7eb] dark:border-[#4b5563] pr-2">
+                <Button onClick={handleSelectAll} variant="outline" size="sm" className="h-9">
+                  {selectedApiIds.size === apis.length && apis.length > 0 ? (
+                    <>
+                      <CheckSquare className="mr-1.5 h-4 w-4" />
+                      取消全选
+                    </>
+                  ) : (
+                    <>
+                      <Square className="mr-1.5 h-4 w-4" />
+                      全选
+                    </>
+                  )}
                 </Button>
-              )}
-              <Button 
-                onClick={handleSelectAll} 
-                variant="outline" 
-                size="sm"
-              >
-                {selectedApiIds.size === apis.length && apis.length > 0 ? (
-                  <>
-                    <CheckSquare className="mr-2 h-4 w-4" />
-                    取消全选
-                  </>
-                ) : (
-                  <>
-                    <Square className="mr-2 h-4 w-4" />
-                    全选
-                  </>
+                {selectedApiIds.size > 0 && (
+                  <Button onClick={handleBatchDelete} variant="destructive" size="sm" className="h-9">
+                    <Trash2 className="mr-1.5 h-4 w-4" />
+                    删除选中
+                  </Button>
                 )}
-              </Button>
-              <Button onClick={() => setApiCreateDialogOpen(true)} size="sm">
-                <Plus className="mr-2 h-4 w-4" />
-                {t('createApi')}
-              </Button>
-              <Button onClick={refreshAll} variant="outline" size="sm">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                {t('refresh')}
-              </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button onClick={() => setApiCreateDialogOpen(true)} size="sm" className="h-9">
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  {t('createApi')}
+                </Button>
+                <Button onClick={refreshAll} variant="outline" size="sm" className="h-9">
+                  <RefreshCw className="mr-1.5 h-4 w-4" />
+                  {t('refresh')}
+                </Button>
+              </div>
             </div>
-          </div>
-
-          {/* 搜索和筛选 */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={t('searchPlaceholder')}
-                className="pl-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              />
-            </div>
-            
-            <Select value={methodFilter} onValueChange={setMethodFilter}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder={t('methodFilter')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">{t('allMethods')}</SelectItem>
-                <SelectItem value="GET">GET</SelectItem>
-                <SelectItem value="POST">POST</SelectItem>
-                <SelectItem value="PUT">PUT</SelectItem>
-                <SelectItem value="DELETE">DELETE</SelectItem>
-                <SelectItem value="PATCH">PATCH</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button onClick={handleSearch}>
-              <Filter className="mr-2 h-4 w-4" />
-              {t('search')}
-            </Button>
           </div>
         </div>
 
@@ -679,6 +673,16 @@ export default function ApiRepositoryPage() {
                                 <span className="text-xs text-muted-foreground">
                                   +{api.tags.length - 3}
                                 </span>
+                              )}
+                            </div>
+                          )}
+                          {(api.createdByUser || api.updatedByUser) && (
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              {api.createdByUser && (
+                                <span>{tCommon('createdBy')}: {api.createdByUser.username}</span>
+                              )}
+                              {api.updatedByUser && (
+                                <span>{tCommon('updatedBy')}: {api.updatedByUser.username}</span>
                               )}
                             </div>
                           )}

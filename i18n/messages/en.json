@@ -39,7 +39,10 @@
     "login": "Login",
     "all": "All",
     "success": "Success",
-    "error": "Error"
+    "error": "Error",
+    "createdBy": "Created By",
+    "updatedBy": "Updated By",
+    "triggerUser": "Triggered By"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -754,6 +757,18 @@
     "selectAllOnPage": "Select All on Page",
     "category": "Category:",
     "pageOfTotal": "Page {current} of {total}",
+    "categoryTree": {
+      "title": "Category Navigation",
+      "allCases": "All Cases",
+      "uncategorized": "Uncategorized",
+      "totalCases": "Total Cases",
+      "categorized": "Categorized",
+      "noCategories": "No Categories",
+      "noCategoriesDesc": "Test cases have no category information yet",
+      "defaultPlatform": "Uncategorized",
+      "defaultComponent": "Uncategorized",
+      "defaultFeature": "Other"
+    },
     "jsonFormatError": "JSON format error",
     "basicConfigTitle": "Basic Configuration",
     "basicConfigDesc": "Configure base URL for API requests",
@@ -1487,8 +1502,8 @@
     "platformTitle": "Intelligent Testing",
     "platformSubtitle": "From Thinking to Execution",
     "platformDescription": "API Intelligent Testing Platform is a next-generation AI-driven visual API test orchestration platform that makes test case creation, management, and execution unprecedentedly simple.",
-    "feature1Title": "Smart API Recording",
-    "feature1Desc": "Browser extension + HAR import dual-mode, automatically captures all API requests, zero configuration for rapid test case library construction",
+    "feature1Title": "Smart API Collection",
+    "feature1Desc": "Three modes: browser extension + proxy + HAR import. Automatically capture all API requests, zero-config to quickly build your test case library",
     "feature2Title": "AI Smart Generation",
     "feature2Desc": "Conversational test case generation, AI automatically understands business requirements, intelligently orchestrates complex test flows",
     "feature3Title": "Visual Orchestration",

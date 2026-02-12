@@ -41,6 +41,8 @@ export default function EditTestSuitePage() {
   });
   
   const [selectedCases, setSelectedCases] = useState<Set<string>>(new Set());
+  const [suiteCreatedBy, setSuiteCreatedBy] = useState<string | null>(null);
+  const [suiteUpdatedBy, setSuiteUpdatedBy] = useState<string | null>(null);
   
   // 调度配置
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
@@ -106,6 +108,8 @@ export default function EditTestSuitePage() {
             }
           }
         }
+        setSuiteCreatedBy(suite.createdByUser?.username ?? null);
+        setSuiteUpdatedBy(suite.updatedByUser?.username ?? null);
       } else {
         throw new Error(result.error);
       }
@@ -239,6 +243,12 @@ export default function EditTestSuitePage() {
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
+            {(suiteCreatedBy || suiteUpdatedBy) && (
+              <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2 border-t pt-4">
+                {suiteCreatedBy && <span>{tCommon('createdBy')}: {suiteCreatedBy}</span>}
+                {suiteUpdatedBy && <span>{tCommon('updatedBy')}: {suiteUpdatedBy}</span>}
+              </div>
+            )}
           </CardContent>
         </Card>
 

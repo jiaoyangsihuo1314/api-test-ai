@@ -122,7 +122,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
                 key={route.href}
                 href={route.href}
                 className={cn(
-                  "text-sm group flex p-3 w-full font-medium cursor-pointer rounded-lg transition-all relative",
+                  "text-[15px] group flex p-3 w-full font-medium cursor-pointer rounded-lg transition-all relative",
                   isCollapsed ? "justify-center" : "justify-start",
                   isActive
                     ? "bg-primary/10 text-primary"

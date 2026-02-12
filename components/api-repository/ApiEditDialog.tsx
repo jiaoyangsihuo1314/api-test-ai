@@ -282,6 +282,12 @@ export function ApiEditDialog({
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>{t('description')}</DialogDescription>
+          {api?.createdByUser || api?.updatedByUser ? (
+            <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1">
+              {api?.createdByUser && <span>{tCommon('createdBy')}: {api.createdByUser.username}</span>}
+              {api?.updatedByUser && <span>{tCommon('updatedBy')}: {api.updatedByUser.username}</span>}
+            </div>
+          ) : null}
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>

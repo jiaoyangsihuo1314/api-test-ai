@@ -281,7 +281,7 @@ export default function ExecutionPage() {
                           <CardTitle>{execution.suiteName}</CardTitle>
                           {getStatusBadge(execution.status)}
                         </div>
-                        <CardDescription className="mt-1 flex items-center gap-4">
+                        <CardDescription className="mt-1 flex items-center gap-4 flex-wrap">
                           <span>{t('startedAt')} {formatTime(execution.startTime)}</span>
                           {execution.duration && (
                             <span>{t('timeElapsed')} {(execution.duration / 1000).toFixed(2)}{t('seconds')}</span>
@@ -296,6 +296,9 @@ export default function ExecutionPage() {
                                     : execution.triggeredBy
                               }
                             </span>
+                          )}
+                          {execution.triggerUser && (
+                            <span>{tCommon('triggerUser')}: {execution.triggerUser}</span>
                           )}
                         </CardDescription>
                       </div>

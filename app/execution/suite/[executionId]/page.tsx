@@ -27,6 +27,8 @@ interface ExecutionData {
   failedSteps: number;
   environmentSnapshot: any;
   caseExecutions: CaseExecution[];
+  triggerUser?: string | null;
+  triggerUserRelation?: { id: string; username: string; realName?: string | null } | null;
 }
 
 interface CaseExecution {
@@ -263,6 +265,11 @@ export default function SuiteExecutionPage() {
             </Button>
             <div className="text-sm text-muted-foreground">
               {execution.suiteName}
+              {(execution.triggerUser || execution.triggerUserRelation) && (
+                <span className="ml-3">
+                  {tCommon('triggerUser')}: {execution.triggerUserRelation?.username || execution.triggerUser || '-'}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">

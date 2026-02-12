@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import { logger, OperationType } from '@/lib/logger';
 import { getExecutorUrl } from '@/lib/config';
 
@@ -12,6 +13,10 @@ export async function POST(
   const { id } = await params;
   
   try {
+    const currentUser = await getCurrentUser(request);
+    const triggerUserId = currentUser?.user?.id ?? null;
+    const triggerUser = currentUser?.user?.username ?? null;
+
     // 获取请求参数
     const body = await request.json().catch(() => ({}));
     const triggeredBy = body.triggered_by || 'manual';
@@ -124,6 +129,8 @@ export async function POST(
         totalCases: testSuite.testCases.length,
         totalSteps,
         triggeredBy,
+        ...(triggerUserId && { triggerUserId }),
+        ...(triggerUser && { triggerUser }),
       },
     });
     

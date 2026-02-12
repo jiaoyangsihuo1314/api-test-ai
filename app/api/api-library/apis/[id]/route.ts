@@ -28,6 +28,8 @@ export async function GET(
             tag: true,
           },
         },
+        createdByUser: { select: { id: true, username: true, realName: true } },
+        updatedByUser: { select: { id: true, username: true, realName: true } },
       },
     });
 
@@ -231,13 +233,20 @@ export async function PUT(
         : JSON.stringify(rawHarEntry);
     }
     
+    // 当前用户（更新人）
+    const { getCurrentUser } = await import('@/lib/auth');
+    const currentUser = await getCurrentUser(request);
+    if (currentUser?.user?.id) {
+      updateData.updatedBy = currentUser.user.id;
+    }
+
     // 安全检查：确保 updateData 中只包含 Prisma schema 定义的字段
     const allowedFields = new Set([
       'name', 'description', 'method', 'url', 'path', 'categoryId', 'isStarred', 'isArchived',
       'platform', 'component', 'feature', // 🆕 四层分类字段
       'requestHeaders', 'requestQuery', 'requestBody', 'requestMimeType',
       'responseStatus', 'responseHeaders', 'responseBody', 'responseMimeType',
-      'rawHarEntry'
+      'rawHarEntry', 'updatedBy'
     ]);
     
     // 过滤掉不在 schema 中的字段
@@ -283,6 +292,8 @@ export async function PUT(
             tag: true,
           },
         },
+        createdByUser: { select: { id: true, username: true, realName: true } },
+        updatedByUser: { select: { id: true, username: true, realName: true } },
       },
     });
 

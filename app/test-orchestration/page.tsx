@@ -220,6 +220,8 @@ export default function TestOrchestrationPage() {
         setTestCaseCategory('');
         setTestCaseTags([]);
         setTagInput('');
+        setCurrentTestCaseCreatedBy(null);
+        setCurrentTestCaseUpdatedBy(null);
         
         // 重置撤销/重做历史
         resetHistory(initialNodes, []);
@@ -265,6 +267,9 @@ export default function TestOrchestrationPage() {
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
 
   // 编辑现有编排
+  const [currentTestCaseCreatedBy, setCurrentTestCaseCreatedBy] = useState<string | null>(null);
+  const [currentTestCaseUpdatedBy, setCurrentTestCaseUpdatedBy] = useState<string | null>(null);
+
   const handleEdit = (testCase: TestCase) => {
     setCurrentTestCaseId(testCase.id);
     setFlowCanvasKey(testCase.id); // 使用编排 ID 作为 key
@@ -274,6 +279,8 @@ export default function TestOrchestrationPage() {
     setTestCaseCategory(testCase.category || '');
     setTestCaseTags(parseTags(testCase.tags));
     setTagInput('');
+    setCurrentTestCaseCreatedBy((testCase as any).createdByUser?.username ?? null);
+    setCurrentTestCaseUpdatedBy((testCase as any).updatedByUser?.username ?? null);
     
     // 加载流程图配置 - 需要解析JSON字符串
     let flowConfig = testCase.flowConfig;
@@ -1282,6 +1289,12 @@ export default function TestOrchestrationPage() {
               <SelectItem value="archived">{t('statusArchived')}</SelectItem>
             </SelectContent>
           </Select>
+          {(currentTestCaseCreatedBy || currentTestCaseUpdatedBy) && (
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              {currentTestCaseCreatedBy && <span>{tCommon('createdBy')}: {currentTestCaseCreatedBy}</span>}
+              {currentTestCaseUpdatedBy && <span>{tCommon('updatedBy')}: {currentTestCaseUpdatedBy}</span>}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

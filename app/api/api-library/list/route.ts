@@ -89,6 +89,8 @@ export async function GET(request: NextRequest) {
             tag: true,
           },
         },
+        createdByUser: { select: { id: true, username: true, realName: true } },
+        updatedByUser: { select: { id: true, username: true, realName: true } },
       },
       orderBy: {
         createdAt: 'desc',
@@ -122,6 +124,8 @@ export async function GET(request: NextRequest) {
       responseTime: api.responseTime,
       responseSize: api.responseSize,
       isStarred: api.isStarred,
+      createdByUser: api.createdByUser,
+      updatedByUser: api.updatedByUser,
       isArchived: api.isArchived,
       importSource: api.importSource,
       // 不返回大字段：requestHeaders, requestQuery, requestBody, responseHeaders, responseBody, rawHarEntry, schema, generatedParams

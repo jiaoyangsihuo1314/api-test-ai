@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import { parameterizePath } from '@/lib/path-parameterization';
 
 export const dynamic = 'force-dynamic';
@@ -10,6 +11,9 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
+    const currentUser = await getCurrentUser(request);
+    const userId = currentUser?.user?.id ?? null;
+
     const body = await request.json();
     const {
       name,
@@ -175,6 +179,7 @@ export async function POST(request: NextRequest) {
         responseHeaders: safeJsonStringify(responseHeaders),
         responseBody: safeJsonStringify(responseBody),
         responseMimeType: responseMimeType || null,
+        ...(userId && { createdBy: userId, updatedBy: userId }),
       },
     });
 
@@ -207,6 +212,8 @@ export async function POST(request: NextRequest) {
             tag: true,
           },
         },
+        createdByUser: { select: { id: true, username: true, realName: true } },
+        updatedByUser: { select: { id: true, username: true, realName: true } },
       },
     });
 

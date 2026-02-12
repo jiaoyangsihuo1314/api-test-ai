@@ -423,7 +423,7 @@ export default function UsersPage() {
         </div>
 
         {/* 用户表格 */}
-        <div className="border rounded-lg">
+        <div className="border border-[#e5e7eb] dark:border-[#4b5563] rounded-lg [&_tr]:border-[#e5e7eb] [&_tr]:dark:border-[#4b5563]">
           <Table>
             <TableHeader>
               <TableRow>

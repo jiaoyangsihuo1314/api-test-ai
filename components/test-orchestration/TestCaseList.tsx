@@ -65,6 +65,8 @@ interface TestCase {
   failCount: number;
   steps: any[];
   flowConfig: any;
+  createdByUser?: { id: string; username: string; realName?: string | null };
+  updatedByUser?: { id: string; username: string; realName?: string | null };
 }
 
 interface TestCaseListProps {
@@ -998,6 +1000,18 @@ export default function TestCaseList({
                               {formatDate(testCase.updatedAt)}
                             </div>
                           </div>
+
+                          {/* 创建人/更新人 */}
+                          {(testCase.createdByUser || testCase.updatedByUser) && (
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              {testCase.createdByUser && (
+                                <span>{tCommon('createdBy')}: {testCase.createdByUser.username}</span>
+                              )}
+                              {testCase.updatedByUser && (
+                                <span>{tCommon('updatedBy')}: {testCase.updatedByUser.username}</span>
+                              )}
+                            </div>
+                          )}
 
                           {/* 成功率进度条 */}
                           {testCase.executeCount > 0 && (
