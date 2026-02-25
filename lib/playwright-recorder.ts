@@ -120,8 +120,8 @@ export class PlaywrightRecorder {
     // 监听响应
     this.page.on('response', async (response) => {
       try {
-        // 如果暂停中，不记录请求
-        if (this.isPaused) {
+        // 录制已停止（浏览器已关）或暂停时，不再处理
+        if (!this.browser || !this.page || this.isPaused) {
           return;
         }
 
@@ -153,8 +153,10 @@ export class PlaywrightRecorder {
 
         // 清理已处理的请求记录
         this.requestTimings.delete(requestId);
-      } catch (error) {
-        console.error('Error processing response:', error);
+      } catch (error: any) {
+        if (!this.isPageClosedError(error)) {
+          console.error('Error processing response:', error);
+        }
       }
     });
 
@@ -234,6 +236,19 @@ export class PlaywrightRecorder {
   }
 
   /**
+   * 判断是否为页面/浏览器已关闭导致的不可用错误
+   */
+  private isPageClosedError(error: any): boolean {
+    const msg = error?.message ?? String(error);
+    return (
+      msg.includes('Target page, context or browser has been closed') ||
+      msg.includes('No resource with given identifier') ||
+      msg.includes('getResponseBody') ||
+      msg.includes('Protocol error')
+    );
+  }
+
+  /**
    * 构建HAR Entry
    */
   private async buildHarEntry(
@@ -243,7 +258,34 @@ export class PlaywrightRecorder {
     duration: number
   ): Promise<HarEntry> {
     const request = await this.buildHarRequest(requestData);
-    const harResponse = await this.buildHarResponse(response);
+    let harResponse: HarResponse;
+    try {
+      harResponse = await this.buildHarResponse(response);
+    } catch (error: any) {
+      if (this.isPageClosedError(error)) {
+        harResponse = {
+          status: 0,
+          statusText: 'Resource unavailable (page closed)',
+          httpVersion: 'HTTP/1.1',
+          cookies: [],
+          headers: [],
+          content: { size: 0, mimeType: 'application/octet-stream' },
+          redirectURL: '',
+          headersSize: -1,
+          bodySize: -1,
+        };
+      } else {
+        throw error;
+      }
+    }
+
+    let serverIPAddress: string | undefined;
+    try {
+      serverIPAddress = response.serverAddr()?.ipAddress;
+    } catch {
+      serverIPAddress = undefined;
+    }
+
     const timings = this.buildHarTimings(duration);
 
     return {
@@ -253,7 +295,7 @@ export class PlaywrightRecorder {
       response: harResponse,
       cache: {},
       timings,
-      serverIPAddress: response.serverAddr()?.ipAddress,
+      serverIPAddress,
       _resourceType: requestData.resourceType,
     };
   }
@@ -379,12 +421,36 @@ export class PlaywrightRecorder {
    * 构建HAR Response
    */
   private async buildHarResponse(response: any): Promise<HarResponse> {
-    const headers: HarHeader[] = Object.entries(response.headers()).map(([name, value]) => ({
-      name,
-      value: value as string,
-    }));
+    let headers: HarHeader[] = [];
+    let status = 0;
+    let statusText = 'Unknown';
+    let contentType = 'application/octet-stream';
 
-    const contentType = response.headers()['content-type'] || 'application/octet-stream';
+    try {
+      headers = Object.entries(response.headers()).map(([name, value]) => ({
+        name,
+        value: value as string,
+      }));
+      contentType = response.headers()['content-type'] || contentType;
+      status = response.status();
+      statusText = response.statusText();
+    } catch (error: any) {
+      if (this.isPageClosedError(error)) {
+        return {
+          status: 0,
+          statusText: 'Resource unavailable (page closed)',
+          httpVersion: 'HTTP/1.1',
+          cookies: [],
+          headers: [],
+          content: { size: 0, mimeType: 'application/octet-stream' },
+          redirectURL: '',
+          headersSize: -1,
+          bodySize: -1,
+        };
+      }
+      throw error;
+    }
+
     let content: HarContent = {
       size: 0,
       mimeType: contentType,
@@ -415,22 +481,19 @@ export class PlaywrightRecorder {
       }
       // 对于二进制文件（图片、字体等），不保存内容，只记录大小
     } catch (error: any) {
-      // 某些响应无法获取body，这是正常的：
-      // - 204 No Content
-      // - 304 Not Modified
-      // - 某些被缓存的资源
-      // - 某些静态资源（图片、字体等）
-      // 只在非预期错误时输出警告
-      if (!error.message?.includes('No data found for resource')) {
+      // 页面/浏览器已关闭或资源不可用时不打日志，其它情况仅对非预期错误输出警告
+      const silent =
+        this.isPageClosedError(error) ||
+        (error.message?.includes && error.message.includes('No data found for resource'));
+      if (!silent) {
         console.warn('Failed to get response body:', error.message);
       }
-      // 设置为0，表示没有body或无法获取
       content.size = 0;
     }
 
     return {
-      status: response.status(),
-      statusText: response.statusText(),
+      status,
+      statusText,
       httpVersion: 'HTTP/1.1',
       cookies: [],
       headers,
