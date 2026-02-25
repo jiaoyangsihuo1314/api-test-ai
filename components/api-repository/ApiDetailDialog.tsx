@@ -517,8 +517,8 @@ export function ApiDetailDialog({
               </div>
               {(api.createdByUser || api.updatedByUser) && (
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  {api.createdByUser && <span>{tCommon('createdBy')}: {api.createdByUser.username}</span>}
-                  {api.updatedByUser && <span>{tCommon('updatedBy')}: {api.updatedByUser.username}</span>}
+                  {api.createdByUser && <span>{tCommon('createdBy')}: {api.createdByUser.loginName}</span>}
+                  {api.updatedByUser && <span>{tCommon('updatedBy')}: {api.updatedByUser.username || api.updatedByUser.loginName}</span>}
                 </div>
               )}
               <div className="text-sm text-muted-foreground space-y-1">

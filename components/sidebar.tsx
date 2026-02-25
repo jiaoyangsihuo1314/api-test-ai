@@ -16,6 +16,7 @@ import {
 import { useTranslations } from "next-intl"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
+import { useTabs } from "@/contexts/tabs-context"
 
 interface SidebarProps {
   isCollapsed?: boolean
@@ -25,6 +26,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
   const pathname = usePathname()
   const t = useTranslations('sidebar')
   const nav = useTranslations('nav')
+  const { addTab } = useTabs()
   
   const routes = [
     {
@@ -83,6 +85,17 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
     },
   ]
 
+  const handleMenuClick = (e: React.MouseEvent, route: typeof routes[0]) => {
+    e.preventDefault()
+    addTab({
+      path: route.href,
+      title: t(route.labelKey as any),
+      labelKey: route.labelKey,
+      closable: true,
+      pinned: false,
+    })
+  }
+
   return (
     <div className="space-y-4 py-4 flex flex-col h-full bg-card border-r border-[#e5e7eb] dark:border-[#4b5563]">
       <div className="px-3 py-2 flex-1">
@@ -118,9 +131,10 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
           {routes.map((route) => {
             const isActive = pathname === route.href;
             return (
-              <Link
+              <a
                 key={route.href}
                 href={route.href}
+                onClick={(e) => handleMenuClick(e, route)}
                 className={cn(
                   "text-[15px] group flex p-3 w-full font-medium cursor-pointer rounded-lg transition-all relative",
                   isCollapsed ? "justify-center" : "justify-start",
@@ -149,7 +163,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
                     <span>{t(route.labelKey as any)}</span>
                   )}
                 </div>
-              </Link>
+              </a>
             );
           })}
         </div>

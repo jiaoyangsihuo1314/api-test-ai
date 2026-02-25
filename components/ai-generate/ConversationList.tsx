@@ -23,8 +23,8 @@ interface Conversation {
   isStarred: boolean;
   isArchived: boolean;
   _count?: { messages: number };
-  createdByUser?: { id: string; username: string; realName?: string | null };
-  updatedByUser?: { id: string; username: string; realName?: string | null };
+  createdByUser?: { id: string; loginName: string; username?: string | null };
+  updatedByUser?: { id: string; loginName: string; username?: string | null };
 }
 
 interface ConversationListProps {
@@ -49,11 +49,17 @@ export function ConversationList({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
 
+  // 带认证的请求头（与登录态一致：后端优先读 Authorization，未传时读 Cookie）
+  const authHeaders = (): HeadersInit => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   // 加载对话列表
   const loadConversations = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/conversations');
+      const res = await fetch('/api/conversations', { headers: authHeaders() });
       const data = await res.json();
       if (data.success) {
         setConversations(data.data);
@@ -82,7 +88,7 @@ export function ConversationList({
     try {
       const res = await fetch(`/api/conversations/${editingId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ title: editTitle.trim() }),
       });
       
@@ -115,6 +121,7 @@ export function ConversationList({
     try {
       const res = await fetch(`/api/conversations/${id}`, {
         method: 'DELETE',
+        headers: authHeaders(),
       });
       
       const data = await res.json();
@@ -132,7 +139,7 @@ export function ConversationList({
     try {
       const res = await fetch(`/api/conversations/${conv.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ isStarred: !conv.isStarred }),
       });
       

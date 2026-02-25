@@ -6,6 +6,8 @@ import { AuthGuard } from "@/components/auth-guard"
 import { Sidebar } from "@/components/sidebar"
 import { Navbar } from "@/components/navbar"
 import { Toaster } from "@/components/ui/toaster"
+import { TabsProvider } from "@/contexts/tabs-context"
+import { TabManager } from "@/components/tabs/TabManager"
 
 const PUBLIC_ROUTES = ['/login', '/register']
 const SIDEBAR_COLLAPSED_KEY = 'sidebar-collapsed'
@@ -44,22 +46,24 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   // 否则显示完整布局
   return (
     <AuthGuard>
-      <div className="h-screen flex">
-        <div className={`hidden md:flex md:flex-col md:fixed md:inset-y-0 transition-all duration-300 ${
-          isCollapsed ? 'md:w-20' : 'md:w-72'
-        }`}>
-          <Sidebar isCollapsed={isCollapsed} />
-        </div>
-        <main className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
-          isCollapsed ? 'md:pl-20' : 'md:pl-72'
-        }`}>
-          <Navbar onToggleSidebar={toggleSidebar} isCollapsed={isCollapsed} />
-          <div className="flex-1 overflow-hidden">
-            {children}
+      <TabsProvider>
+        <div className="h-screen flex">
+          <div className={`hidden md:flex md:flex-col md:fixed md:inset-y-0 transition-all duration-300 ${
+            isCollapsed ? 'md:w-20' : 'md:w-72'
+          }`}>
+            <Sidebar isCollapsed={isCollapsed} />
           </div>
-        </main>
-      </div>
-      <Toaster />
+          <main className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
+            isCollapsed ? 'md:pl-20' : 'md:pl-72'
+          }`}>
+            <Navbar onToggleSidebar={toggleSidebar} isCollapsed={isCollapsed} />
+            <div className="flex-1 overflow-hidden">
+              <TabManager>{children}</TabManager>
+            </div>
+          </main>
+        </div>
+        <Toaster />
+      </TabsProvider>
     </AuthGuard>
   )
 }

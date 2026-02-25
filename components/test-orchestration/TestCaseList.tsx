@@ -65,8 +65,8 @@ interface TestCase {
   failCount: number;
   steps: any[];
   flowConfig: any;
-  createdByUser?: { id: string; username: string; realName?: string | null };
-  updatedByUser?: { id: string; username: string; realName?: string | null };
+  createdByUser?: { id: string; loginName: string; username?: string | null };
+  updatedByUser?: { id: string; loginName: string; username?: string | null };
 }
 
 interface TestCaseListProps {
@@ -788,12 +788,20 @@ export default function TestCaseList({
             <DropdownMenuContent className="w-[300px] p-0" align="start">
               <ScrollArea className="max-h-[400px]">
                 <div className="p-2">
-                  {/* 全部选项 */}
-                  <button
+                  {/* 全部选项 - 使用 div 避免 button 嵌套 Checkbox(button) 导致的水合错误 */}
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
                       setSelectedApiCategories(new Set());
                     }}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors mb-1 hover:bg-muted"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedApiCategories(new Set());
+                      }
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors mb-1 hover:bg-muted cursor-pointer"
                   >
                     <div className="flex items-center gap-2">
                       <Checkbox
@@ -807,7 +815,7 @@ export default function TestCaseList({
                     <Badge variant="outline">
                       {allApis.length}
                     </Badge>
-                  </button>
+                  </div>
                   
                   {/* 分类树 */}
                   {apiCategoryTree.length > 0 ? (
@@ -1005,10 +1013,10 @@ export default function TestCaseList({
                           {(testCase.createdByUser || testCase.updatedByUser) && (
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
                               {testCase.createdByUser && (
-                                <span>{tCommon('createdBy')}: {testCase.createdByUser.username}</span>
+                                <span>{tCommon('createdBy')}: {testCase.createdByUser.username || testCase.createdByUser.loginName}</span>
                               )}
                               {testCase.updatedByUser && (
-                                <span>{tCommon('updatedBy')}: {testCase.updatedByUser.username}</span>
+                                <span>{tCommon('updatedBy')}: {testCase.updatedByUser.username || testCase.updatedByUser.loginName}</span>
                               )}
                             </div>
                           )}

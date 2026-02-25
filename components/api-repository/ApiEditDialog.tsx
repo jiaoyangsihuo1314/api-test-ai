@@ -284,8 +284,8 @@ export function ApiEditDialog({
           <DialogDescription>{t('description')}</DialogDescription>
           {api?.createdByUser || api?.updatedByUser ? (
             <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1">
-              {api?.createdByUser && <span>{tCommon('createdBy')}: {api.createdByUser.username}</span>}
-              {api?.updatedByUser && <span>{tCommon('updatedBy')}: {api.updatedByUser.username}</span>}
+              {api?.createdByUser && <span>{tCommon('createdBy')}: {api.createdByUser.username || api.createdByUser.loginName}</span>}
+              {api?.updatedByUser && <span>{tCommon('updatedBy')}: {api.updatedByUser.username || api.updatedByUser.loginName}</span>}
             </div>
           ) : null}
         </DialogHeader>

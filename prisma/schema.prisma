@@ -638,17 +638,17 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // 用户名（唯一）
-  username String @unique
+  // 登录名（唯一，用于登录）
+  loginName String @unique
+  
+  // 用户名（显示用，可选）
+  username String?
   
   // 密码（加密存储）
   password String
   
   // 邮箱（可选）
   email String?
-  
-  // 真实姓名
-  realName String?
   
   // 角色：admin, user
   role String @default("user")
@@ -670,7 +670,7 @@ model User {
   conversationsUpdated  Conversation[]       @relation("ConversationUpdatedBy")
   suiteExecutionsTriggered TestSuiteExecution[] @relation
   
-  @@index([username])
+  @@index([loginName])
   @@index([role])
   @@index([status])
   @@index([createdAt])
