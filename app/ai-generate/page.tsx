@@ -24,6 +24,12 @@ export default function AIGeneratePage() {
   const { toast } = useToast();
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // 带认证的请求头（与登录态一致：后端优先读 Authorization）
+  const authHeaders = (): HeadersInit => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   // 监听页面刷新/关闭事件 - 当AI正在生成时阻止用户离开
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -44,7 +50,7 @@ export default function AIGeneratePage() {
   // 加载对话消息
   const loadMessages = async (conversationId: string) => {
     try {
-      const res = await fetch(`/api/conversations/${conversationId}/messages`);
+      const res = await fetch(`/api/conversations/${conversationId}/messages`, { headers: authHeaders() });
       const data = await res.json();
       if (data.success) {
         // 解析消息，将 metadata.blocks 提取到 message.blocks
@@ -72,7 +78,7 @@ export default function AIGeneratePage() {
   // 加载对话详情（用于展示创建人/更新人）
   const loadConversationDetail = async (id: string) => {
     try {
-      const res = await fetch(`/api/conversations/${id}`);
+      const res = await fetch(`/api/conversations/${id}`, { headers: authHeaders() });
       const data = await res.json();
       if (data.success && data.data) {
         setCurrentConversationMeta({
@@ -103,7 +109,7 @@ export default function AIGeneratePage() {
       // 立即创建数据库记录，这样左侧会显示"新对话"
       const res = await fetch('/api/conversations', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           title: t('newConversation'),
         }),
@@ -180,7 +186,7 @@ export default function AIGeneratePage() {
       if (!conversationId) {
         const createRes = await fetch('/api/conversations', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({
             title: content.slice(0, 50) + (content.length > 50 ? '...' : ''),
           }),
@@ -211,7 +217,7 @@ export default function AIGeneratePage() {
       // 保存用户消息到数据库
       await fetch(`/api/conversations/${conversationId}/messages`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
           role: 'user',
           content,
@@ -233,7 +239,7 @@ export default function AIGeneratePage() {
       // 调用SSE流式API
       const response = await fetch('/api/ai/smart-generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ 
           userInput: content,
           testType 
@@ -396,7 +402,7 @@ export default function AIGeneratePage() {
       // 保存AI回复到数据库
       await fetch(`/api/conversations/${conversationId}/messages`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({
         role: 'assistant',
           content: fullContent,
@@ -408,7 +414,7 @@ export default function AIGeneratePage() {
       if (isNewConversation || messages.length === 0) {
         await fetch(`/api/conversations/${conversationId}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({
             title: content.slice(0, 30) + (content.length > 30 ? '...' : ''),
           }),
@@ -462,7 +468,7 @@ export default function AIGeneratePage() {
         if (conversationId && stoppedContent) {
           fetch(`/api/conversations/${conversationId}/messages`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
             body: JSON.stringify({
               role: 'assistant',
               content: stoppedContent,
@@ -525,7 +531,7 @@ export default function AIGeneratePage() {
       {/* 右侧主区域 */}
       <div className="flex-1 flex flex-col h-full bg-card">
         {/* 顶部栏（仅移动端显示菜单按钮） */}
-        <div className="border-b border-border bg-card px-6 py-3 flex items-center gap-3 lg:hidden">
+        <div className="border-b border-border bg-card px-4 py-2.5 flex items-center gap-3 lg:hidden">
           <Button
             variant="ghost"
             size="icon"
@@ -536,17 +542,9 @@ export default function AIGeneratePage() {
           <span className="text-sm text-muted-foreground">{t('pageSubtitle')}</span>
         </div>
 
-        {/* 当前对话信息（创建人/更新人） */}
-        {currentConversationId && currentConversationMeta && (currentConversationMeta.createdByUser || currentConversationMeta.updatedByUser) && (
-          <div className="px-4 py-2 border-b border-border bg-muted/30 text-xs text-muted-foreground flex items-center gap-4">
-            {currentConversationMeta.createdByUser && <span>{tCommon('createdBy')}: {currentConversationMeta.createdByUser.username}</span>}
-            {currentConversationMeta.updatedByUser && <span>{tCommon('updatedBy')}: {currentConversationMeta.updatedByUser.username}</span>}
-          </div>
-        )}
-
         {/* AI生成中的警告提示 */}
         {loading && (
-          <Alert className="m-4 border-orange-600 bg-orange-100 dark:bg-orange-900/40 dark:border-orange-500 animate-pulse">
+          <Alert className="mx-4 mt-3 mb-2 border-orange-600 bg-orange-100 dark:bg-orange-900/40 dark:border-orange-500 animate-pulse">
             <AlertTriangle className="h-5 w-5 text-orange-700 dark:text-orange-300" />
             <AlertDescription className="text-orange-950 dark:text-orange-50 font-semibold ml-2">
               ⚠️ {t('generatingAlert')}

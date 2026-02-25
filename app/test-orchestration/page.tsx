@@ -279,8 +279,8 @@ export default function TestOrchestrationPage() {
     setTestCaseCategory(testCase.category || '');
     setTestCaseTags(parseTags(testCase.tags));
     setTagInput('');
-    setCurrentTestCaseCreatedBy((testCase as any).createdByUser?.username ?? null);
-    setCurrentTestCaseUpdatedBy((testCase as any).updatedByUser?.username ?? null);
+    setCurrentTestCaseCreatedBy((testCase as any).createdByUser?.loginName ?? null);
+    setCurrentTestCaseUpdatedBy((testCase as any).updatedByUser?.loginName ?? null);
     
     // 加载流程图配置 - 需要解析JSON字符串
     let flowConfig = testCase.flowConfig;

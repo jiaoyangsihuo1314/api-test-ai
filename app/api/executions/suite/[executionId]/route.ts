@@ -19,7 +19,7 @@ export async function GET(
             description: true,
           },
         },
-        triggerUserRelation: { select: { id: true, username: true, realName: true } },
+        triggerUserRelation: { select: { id: true, loginName: true } },
         caseExecutions: {
           include: {
             stepExecutions: {

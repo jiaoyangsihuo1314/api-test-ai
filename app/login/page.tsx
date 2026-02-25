@@ -21,7 +21,7 @@ export default function LoginPage() {
   const locale = useLocale()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    username: "",
+    loginName: "",
     password: "",
   })
 
@@ -53,7 +53,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ loginName: formData.loginName, password: formData.password }),
       })
 
       const data = await response.json()
@@ -70,7 +70,7 @@ export default function LoginPage() {
 
       toast({
         title: t('loginSuccess'),
-        description: `${t('welcomeBack')}，${data.user.username}！`,
+        description: `${t('welcomeBack')}，${data.user.username || data.user.loginName}！`,
       })
 
       // 跳转到仪表盘页面
@@ -80,7 +80,7 @@ export default function LoginPage() {
       toast({
         variant: "destructive",
         title: t('loginFailed'),
-        description: error.message || t('usernameRequired'),
+        description: error.message || t('loginNameRequired'),
       })
     } finally {
       setLoading(false)
@@ -253,18 +253,18 @@ export default function LoginPage() {
         <CardContent className="relative z-10">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-medium">
-                {t('username')}
+              <Label htmlFor="loginName" className="text-sm font-medium">
+                {t('loginName')}
               </Label>
               <div className="relative group">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-400 transition-colors" />
                 <Input
-                  id="username"
+                  id="loginName"
                   type="text"
-                  placeholder={t('usernamePlaceholder')}
-                  value={formData.username}
+                  placeholder={t('loginNamePlaceholder')}
+                  value={formData.loginName}
                   onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
+                    setFormData({ ...formData, loginName: e.target.value })
                   }
                   required
                   disabled={loading}

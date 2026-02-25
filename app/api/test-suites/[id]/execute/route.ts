@@ -15,7 +15,7 @@ export async function POST(
   try {
     const currentUser = await getCurrentUser(request);
     const triggerUserId = currentUser?.user?.id ?? null;
-    const triggerUser = currentUser?.user?.username ?? null;
+    const triggerUser = currentUser?.user?.loginName ?? null;
 
     // 获取请求参数
     const body = await request.json().catch(() => ({}));

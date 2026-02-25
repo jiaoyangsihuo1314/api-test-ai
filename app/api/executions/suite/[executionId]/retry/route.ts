@@ -12,7 +12,7 @@ export async function POST(
   try {
     const currentUser = await getCurrentUser(request);
     const triggerUserId = currentUser?.user?.id ?? null;
-    const triggerUser = currentUser?.user?.username ?? null;
+    const triggerUser = currentUser?.user?.loginName ?? null;
 
     const { executionId } = await params;
 

@@ -679,10 +679,10 @@ export default function ApiRepositoryPage() {
                           {(api.createdByUser || api.updatedByUser) && (
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
                               {api.createdByUser && (
-                                <span>{tCommon('createdBy')}: {api.createdByUser.username}</span>
+                                <span>{tCommon('createdBy')}: {api.createdByUser.loginName}</span>
                               )}
                               {api.updatedByUser && (
-                                <span>{tCommon('updatedBy')}: {api.updatedByUser.username}</span>
+                                <span>{tCommon('updatedBy')}: {api.updatedByUser.username || api.updatedByUser.loginName}</span>
                               )}
                             </div>
                           )}

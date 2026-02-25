@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
         _count: {
           select: { messages: true },
         },
-        createdByUser: { select: { id: true, username: true, realName: true } },
-        updatedByUser: { select: { id: true, username: true, realName: true } },
+        createdByUser: { select: { id: true, loginName: true } },
+        updatedByUser: { select: { id: true, loginName: true } },
       },
       orderBy: { updatedAt: 'desc' },
     });

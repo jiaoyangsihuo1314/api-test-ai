@@ -73,8 +73,8 @@ export async function GET(request: NextRequest) {
             order: 'asc',
           },
         },
-        createdByUser: { select: { id: true, username: true, realName: true } },
-        updatedByUser: { select: { id: true, username: true, realName: true } },
+        createdByUser: { select: { id: true, loginName: true } },
+        updatedByUser: { select: { id: true, loginName: true } },
       },
       orderBy: {
         updatedAt: 'desc',

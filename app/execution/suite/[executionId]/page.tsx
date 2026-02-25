@@ -28,7 +28,7 @@ interface ExecutionData {
   environmentSnapshot: any;
   caseExecutions: CaseExecution[];
   triggerUser?: string | null;
-  triggerUserRelation?: { id: string; username: string; realName?: string | null } | null;
+  triggerUserRelation?: { id: string; loginName: string; username?: string | null } | null;
 }
 
 interface CaseExecution {
@@ -267,7 +267,7 @@ export default function SuiteExecutionPage() {
               {execution.suiteName}
               {(execution.triggerUser || execution.triggerUserRelation) && (
                 <span className="ml-3">
-                  {tCommon('triggerUser')}: {execution.triggerUserRelation?.username || execution.triggerUser || '-'}
+                  {tCommon('triggerUser')}: {execution.triggerUserRelation?.username || execution.triggerUserRelation?.loginName || execution.triggerUser || '-'}
                 </span>
               )}
             </div>

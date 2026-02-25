@@ -52,8 +52,8 @@ export async function GET(
           },
           take: 10, // 只返回最近10次执行
         },
-        createdByUser: { select: { id: true, username: true, realName: true } },
-        updatedByUser: { select: { id: true, username: true, realName: true } },
+        createdByUser: { select: { id: true, loginName: true } },
+        updatedByUser: { select: { id: true, loginName: true } },
       },
     });
 

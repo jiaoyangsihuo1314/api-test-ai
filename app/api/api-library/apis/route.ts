@@ -212,8 +212,8 @@ export async function POST(request: NextRequest) {
             tag: true,
           },
         },
-        createdByUser: { select: { id: true, username: true, realName: true } },
-        updatedByUser: { select: { id: true, username: true, realName: true } },
+        createdByUser: { select: { id: true, loginName: true } },
+        updatedByUser: { select: { id: true, loginName: true } },
       },
     });
 

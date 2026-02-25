@@ -108,8 +108,8 @@ export default function EditTestSuitePage() {
             }
           }
         }
-        setSuiteCreatedBy(suite.createdByUser?.username ?? null);
-        setSuiteUpdatedBy(suite.updatedByUser?.username ?? null);
+        setSuiteCreatedBy(suite.createdByUser?.loginName ?? null);
+        setSuiteUpdatedBy(suite.updatedByUser?.loginName ?? null);
       } else {
         throw new Error(result.error);
       }

@@ -56,8 +56,8 @@ export async function GET(
             order: 'asc',
           },
         },
-        createdByUser: { select: { id: true, username: true, realName: true } },
-        updatedByUser: { select: { id: true, username: true, realName: true } },
+        createdByUser: { select: { id: true, loginName: true } },
+        updatedByUser: { select: { id: true, loginName: true } },
       },
     });
 

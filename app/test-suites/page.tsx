@@ -28,8 +28,8 @@ interface TestSuite {
   scheduleConfig?: string;
   scheduleStatus?: string;
   nextRunTime?: string;
-  createdByUser?: { id: string; username: string; realName?: string | null };
-  updatedByUser?: { id: string; username: string; realName?: string | null };
+  createdByUser?: { id: string; loginName: string };
+  updatedByUser?: { id: string; loginName: string };
 }
 
 export default function TestSuitesPage() {
@@ -221,9 +221,9 @@ export default function TestSuitesPage() {
                         )}
                         {(suite.createdByUser || suite.updatedByUser) && (
                           <span className="block mt-1 text-xs">
-                            {suite.createdByUser && <span>{tCommon('createdBy')}: {suite.createdByUser.username}</span>}
+                            {suite.createdByUser && <span>{tCommon('createdBy')}: {suite.createdByUser.username || suite.createdByUser.loginName}</span>}
                             {suite.createdByUser && suite.updatedByUser && ' · '}
-                            {suite.updatedByUser && <span>{tCommon('updatedBy')}: {suite.updatedByUser.username}</span>}
+                            {suite.updatedByUser && <span>{tCommon('updatedBy')}: {suite.updatedByUser.username || suite.updatedByUser.loginName}</span>}
                           </span>
                         )}
                       </CardDescription>
