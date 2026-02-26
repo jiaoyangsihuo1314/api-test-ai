@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
 import { useState, useEffect } from "react"
+import { useTabs } from "@/contexts/tabs-context"
 
 interface NavbarProps {
   onToggleSidebar?: () => void
@@ -29,6 +30,7 @@ export function Navbar({ onToggleSidebar, isCollapsed = false }: NavbarProps) {
   const t = useTranslations('nav')
   const { toast } = useToast()
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const { resetTabs } = useTabs()
   
   // 获取当前用户信息
   useEffect(() => {
@@ -60,6 +62,8 @@ export function Navbar({ onToggleSidebar, isCollapsed = false }: NavbarProps) {
       localStorage.removeItem('user')
       localStorage.removeItem('app-tabs')
       localStorage.removeItem('app-active-tab')
+      // 重置内存中的页签状态
+      resetTabs()
       
       toast({
         title: t('logoutSuccess'),
@@ -75,6 +79,7 @@ export function Navbar({ onToggleSidebar, isCollapsed = false }: NavbarProps) {
       localStorage.removeItem('user')
       localStorage.removeItem('app-tabs')
       localStorage.removeItem('app-active-tab')
+      resetTabs()
       router.push('/login')
     }
   }
