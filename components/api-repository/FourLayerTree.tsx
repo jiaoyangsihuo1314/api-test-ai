@@ -350,7 +350,12 @@ export function FourLayerTree({
           <Icon className="h-4 w-4 flex-shrink-0" />
 
           {/* 名称 */}
-          <span className="truncate max-w-[100px]">{node.name}</span>
+          <span
+            className="truncate max-w-[100px]"
+            title={node.name}
+          >
+            {node.name}
+          </span>
 
           {/* 操作按钮 - 紧跟名称 */}
           {(onCreateCategory || onEditCategory || onDeleteCategory) && (

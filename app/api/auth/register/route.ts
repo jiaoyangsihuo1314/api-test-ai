@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json();
-    const { loginName, password, email } = body;
+    const { loginName, password, email, username } = body;
 
     // 记录注册请求
     logger.apiRequest('POST', '/api/auth/register', OperationType.AUTH, { loginName, email });
@@ -92,10 +92,11 @@ export async function POST(request: NextRequest) {
     const userCount = await prisma.user.count();
     const role = userCount === 0 ? 'admin' : 'user';
 
-    logger.db(OperationType.CREATE, 'User', 'create', { loginName, role });
+    logger.db(OperationType.CREATE, 'User', 'create', { loginName, role, username });
     const user = await prisma.user.create({
       data: {
         loginName,
+        username: username || null,
         password: hashedPassword,
         email: email || null,
         role,

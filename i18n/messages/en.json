@@ -814,6 +814,7 @@
     "scheduleEnabled": "Scheduled Execution",
     "schedulePaused": "Paused",
     "scheduleCompleted": "Executed",
+    "onceScheduleCompleted": "One-time schedule completed",
     "scheduleMode": "Execution Mode",
     "manualMode": "Manual Execution",
     "scheduledMode": "Scheduled Execution",

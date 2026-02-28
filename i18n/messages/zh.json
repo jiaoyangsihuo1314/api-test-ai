@@ -813,6 +813,7 @@
     "nextExecution": "下次执行",
     "scheduleEnabled": "定时执行",
     "scheduleCompleted": "定时已完成",
+    "onceScheduleCompleted": "一次性调度已完成",
     "schedulePaused": "已暂停",
     "scheduleMode": "执行方式",
     "manualMode": "手动执行",

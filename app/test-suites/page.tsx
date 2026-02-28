@@ -192,105 +192,187 @@ export default function TestSuitesPage() {
           </Card>
         ) : (
           <div className="grid gap-4 pb-4">
-            {testSuites.map((suite) => (
-            <Card key={suite.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                    <FolderKanban className="h-5 w-5 text-primary" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <CardTitle>{suite.name}</CardTitle>
-                        <Badge variant="outline">{suite.status === 'active' ? t('statusPublished') : t('statusDraft')}</Badge>
-                        {suite.executionMode === 'scheduled' && (
-                          <Badge variant="default" className="gap-1">
-                            <Clock className="h-3 w-3" />
-                            {t('scheduleEnabled')}
-                          </Badge>
-                        )}
-                        {suite.useGlobalSettings ? (
-                          <Badge variant="secondary">{t('globalConfig')}</Badge>
-                        ) : (
-                          <Badge variant="default">{t('independentConfig')}</Badge>
-                        )}
-                      </div>
-                      <CardDescription className="mt-1">
-                        {suite.testCaseCount} {t('casesCount')}
-                        {suite.lastExecution && (
-                          <> · {t('lastRun')} {new Date(suite.lastExecution.time).toLocaleString()}</>
-                        )}
-                        {(suite.createdByUser || suite.updatedByUser) && (
-                          <span className="block mt-1 text-xs">
-                            {suite.createdByUser && <span>{tCommon('createdBy')}: {suite.createdByUser.username || suite.createdByUser.loginName}</span>}
-                            {suite.createdByUser && suite.updatedByUser && ' · '}
-                            {suite.updatedByUser && <span>{tCommon('updatedBy')}: {suite.updatedByUser.username || suite.updatedByUser.loginName}</span>}
-                          </span>
-                        )}
-                      </CardDescription>
-                      {suite.description && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {suite.description}
-                        </p>
-                      )}
-                      {suite.executionMode === 'scheduled' && (
-                        <div className="flex items-center gap-1 mt-2 text-sm text-primary">
-                          <Clock className="h-4 w-4" />
-                          {suite.scheduleStatus === 'disabled' ? (
-                            <span className="text-muted-foreground">{t('scheduleCompleted')}</span>
-                          ) : suite.scheduleStatus === 'paused' ? (
-                            <>
-                              <span>{t('nextExecution')}: {suite.nextRunTime ? new Date(suite.nextRunTime).toLocaleString() : '-'}</span>
-                              <Badge variant="outline" className="ml-2">{t('schedulePaused')}</Badge>
-                            </>
-                          ) : suite.nextRunTime ? (
-                            <span>{t('nextExecution')}: {new Date(suite.nextRunTime).toLocaleString()}</span>
-                          ) : null}
+            {testSuites.map((suite) => {
+              let isOnceSchedule = false;
+              let isOnceScheduleFinished = false;
+
+              if (suite.executionMode === 'scheduled' && suite.scheduleConfig) {
+                try {
+                  const parsed = JSON.parse(suite.scheduleConfig);
+                  isOnceSchedule = parsed?.type === 'once';
+                } catch (e) {
+                  // ignore parse error, fall back to default behavior
+                }
+              }
+
+              if (isOnceSchedule) {
+                const now = new Date();
+                const nextRun = suite.nextRunTime
+                  ? new Date(suite.nextRunTime)
+                  : null;
+                // 一次性调度：如果已经没有下次执行时间，或者下次执行时间已在当前时间之前，视为已完成
+                if (!nextRun || nextRun <= now) {
+                  isOnceScheduleFinished = true;
+                }
+              }
+
+              return (
+                <Card key={suite.id}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1">
+                        <FolderKanban className="h-5 w-5 text-primary" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <CardTitle>{suite.name}</CardTitle>
+                            <Badge variant="outline">
+                              {suite.status === 'active'
+                                ? t('statusPublished')
+                                : t('statusDraft')}
+                            </Badge>
+                            {suite.executionMode === 'scheduled' && (
+                              <Badge variant="default" className="gap-1">
+                                <Clock className="h-3 w-3" />
+                                {t('scheduleEnabled')}
+                              </Badge>
+                            )}
+                            {suite.useGlobalSettings ? (
+                              <Badge variant="secondary">
+                                {t('globalConfig')}
+                              </Badge>
+                            ) : (
+                              <Badge variant="default">
+                                {t('independentConfig')}
+                              </Badge>
+                            )}
+                          </div>
+                          <CardDescription className="mt-1">
+                            {suite.testCaseCount} {t('casesCount')}
+                            {suite.lastExecution && (
+                              <>
+                                {' '}
+                                · {t('lastRun')}{' '}
+                                {new Date(
+                                  suite.lastExecution.time
+                                ).toLocaleString()}
+                              </>
+                            )}
+                            {(suite.createdByUser || suite.updatedByUser) && (
+                              <span className="block mt-1 text-xs">
+                                {suite.createdByUser && (
+                                  <span>
+                                    {tCommon('createdBy')}:{' '}
+                                    {suite.createdByUser.username ||
+                                      suite.createdByUser.loginName}
+                                  </span>
+                                )}
+                                {suite.createdByUser && suite.updatedByUser && ' · '}
+                                {suite.updatedByUser && (
+                                  <span>
+                                    {tCommon('updatedBy')}:{' '}
+                                    {suite.updatedByUser.username ||
+                                      suite.updatedByUser.loginName}
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          </CardDescription>
+                          {suite.description && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {suite.description}
+                            </p>
+                          )}
+                          {suite.executionMode === 'scheduled' && (
+                            <div className="flex items-center gap-1 mt-2 text-sm text-primary">
+                              <Clock className="h-4 w-4" />
+                              {isOnceSchedule && (suite.scheduleStatus === 'disabled' || isOnceScheduleFinished) ? (
+                                <span className="text-muted-foreground">
+                                  {t('onceScheduleCompleted')}
+                                </span>
+                              ) : suite.scheduleStatus === 'disabled' ? (
+                                <span className="text-muted-foreground">
+                                  {t('scheduleCompleted')}
+                                </span>
+                              ) : suite.scheduleStatus === 'paused' ? (
+                                <>
+                                  <span>
+                                    {t('nextExecution')}:{' '}
+                                    {suite.nextRunTime
+                                      ? new Date(
+                                          suite.nextRunTime
+                                        ).toLocaleString()
+                                      : '-'}
+                                  </span>
+                                  <Badge
+                                    variant="outline"
+                                    className="ml-2"
+                                  >
+                                    {t('schedulePaused')}
+                                  </Badge>
+                                </>
+                              ) : suite.nextRunTime ? (
+                                <span>
+                                  {t('nextExecution')}:{' '}
+                                  {new Date(
+                                    suite.nextRunTime
+                                  ).toLocaleString()}
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {suite.lastExecution && (
-                      <div className="text-right">
-                        <div className="text-2xl font-bold">{suite.lastExecution.passRate}%</div>
-                        <p className="text-xs text-muted-foreground">{t('passRate')}</p>
                       </div>
-                    )}
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(suite.id)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewHistory(suite.id)}
-                      >
-                        <History className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(suite.id, suite.name)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleExecute(suite.id, suite.name)}
-                        disabled={suite.testCaseCount === 0}
-                      >
-                        <Play className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-3">
+                        {suite.lastExecution && (
+                          <div className="text-right">
+                            <div className="text-2xl font-bold">
+                              {suite.lastExecution.passRate}%
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {t('passRate')}
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(suite.id)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewHistory(suite.id)}
+                          >
+                            <History className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleDelete(suite.id, suite.name)
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              handleExecute(suite.id, suite.name)
+                            }
+                            disabled={suite.testCaseCount === 0}
+                          >
+                            <Play className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          ))}
+                  </CardHeader>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

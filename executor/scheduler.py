@@ -1,6 +1,7 @@
 """
 测试套件调度器 - 支持定时和周期性执行测试套件
 """
+import os
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.cron import CronTrigger
@@ -142,13 +143,25 @@ class TestSuiteScheduler:
                     print("❌ 缺少 executeAt 字段")
                     return None
                 
-                # 解析时间字符串
+                # 解析时间字符串（兼容两种格式）：
+                # 1) 'YYYY-MM-DDTHH:mm:ss'（无时区，按 timezone 解释）
+                # 2) ISO 8601（含 Z 或偏移，表示绝对时刻）
                 execute_at = datetime.fromisoformat(execute_at_str.replace('Z', '+00:00'))
-                
-                # 转换为目标时区
+
+                # 统一对齐到配置时区
                 if execute_at.tzinfo is None:
                     execute_at = timezone.localize(execute_at)
-                
+                else:
+                    execute_at = execute_at.astimezone(timezone)
+
+                # 如果时间已经过去，给出清晰提示（APScheduler 不会“补跑” DateTrigger）
+                now_in_tz = datetime.now(timezone)
+                if execute_at <= now_in_tz:
+                    print(
+                        f"⚠️  一次性调度时间已过期: {execute_at.strftime('%Y-%m-%d %H:%M:%S %Z')} "
+                        f"(当前时间: {now_in_tz.strftime('%Y-%m-%d %H:%M:%S %Z')})"
+                    )
+
                 return DateTrigger(run_date=execute_at, timezone=timezone)
             
             elif schedule_type == 'recurring':
@@ -254,8 +267,10 @@ class TestSuiteScheduler:
             
             import httpx
             async with httpx.AsyncClient(timeout=10.0) as client:
+                # 使用环境变量配置 Next.js 服务地址，默认端口与 package.json 中保持一致 (3009)
+                next_base_url = os.getenv("NEXT_API_BASE_URL", "http://localhost:3009")
                 response = await client.post(
-                    f'http://localhost:3000/api/test-suites/{suite_id}/execute',
+                    f'{next_base_url}/api/test-suites/{suite_id}/execute',
                     json={'triggered_by': 'schedule'}
                 )
                 

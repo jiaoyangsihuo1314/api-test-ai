@@ -20,6 +20,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     loginName: "",
+    username: "",
     password: "",
     confirmPassword: "",
     email: "",
@@ -143,6 +144,25 @@ export default function RegisterPage() {
               </div>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="username" className="text-sm font-medium">
+                {t('username')} <span className="text-muted-foreground text-xs">({t('optional')})</span>
+              </Label>
+              <div className="relative group">
+                <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder={t('usernamePlaceholder')}
+                  value={formData.username}
+                  onChange={(e) =>
+                    setFormData({ ...formData, username: e.target.value })
+                  }
+                  disabled={loading}
+                  className="pl-10 h-11 bg-background/50 border-blue-500/20 focus:border-blue-500 transition-all"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-medium">
                 {t('password')} <span className="text-red-400">*</span>
               </Label>
@@ -159,25 +179,6 @@ export default function RegisterPage() {
                   required
                   disabled={loading}
                   minLength={6}
-                  className="pl-10 h-11 bg-background/50 border-blue-500/20 focus:border-blue-500 transition-all"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-medium">
-                {t('username')} <span className="text-muted-foreground text-xs">({t('optional')})</span>
-              </Label>
-              <div className="relative group">
-                <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
-                <Input
-                  id="username"
-                  type="text"
-                  placeholder={t('usernamePlaceholder')}
-                  value={formData.username}
-                  onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
-                  }
-                  disabled={loading}
                   className="pl-10 h-11 bg-background/50 border-blue-500/20 focus:border-blue-500 transition-all"
                 />
               </div>
