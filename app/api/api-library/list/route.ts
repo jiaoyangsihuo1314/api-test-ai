@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     const platform = searchParams.get('platform');
     const component = searchParams.get('component');
     const feature = searchParams.get('feature');
+    const subFeature = searchParams.get('subFeature');
 
     // 构建查询条件
     const where: any = {};
@@ -64,6 +65,13 @@ export async function GET(request: NextRequest) {
         where.feature = null;
       } else {
         where.feature = feature;
+      }
+    }
+    if (subFeature) {
+      if (subFeature === '__NULL__') {
+        where.subFeature = null;
+      } else {
+        where.subFeature = subFeature;
       }
     }
 
@@ -114,6 +122,7 @@ export async function GET(request: NextRequest) {
       platform: api.platform,
       component: api.component,
       feature: api.feature,
+      subFeature: api.subFeature,
       // 旧的分类（向后兼容）
       categoryId: api.categoryId,
       category: api.category,

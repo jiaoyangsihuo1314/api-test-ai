@@ -486,10 +486,12 @@
     "createClassification": {
       "title": "Create Classification",
       "description": "Manually create four-layer classification structure",
+      "descriptionSubFeature": "Manually create five-level classification structure",
       "level": "Level",
       "platform": "Platform",
       "component": "Component",
       "feature": "Feature",
+      "subFeature": "Sub-feature",
       "parentContext": "Create Under",
       "selectPlatform": "Select Platform",
       "selectPlatformPlaceholder": "Please select parent platform",
@@ -501,11 +503,14 @@
       "componentNamePlaceholder": "e.g.: User Module",
       "featureName": "Feature Name",
       "featureNamePlaceholder": "e.g.: User Management",
+      "subFeatureName": "Sub-feature Name",
+      "subFeatureNamePlaceholder": "e.g.: Login Distribution",
       "create": "Create",
       "cancel": "Cancel",
       "error": "Failed to create",
       "addComponent": "Add Component",
-      "addFeature": "Add Feature"
+      "addFeature": "Add Feature",
+      "addSubFeature": "Add Sub-feature"
     },
     "conflictResolver": {
       "title": "Duplicate APIs Found",
@@ -561,7 +566,10 @@
       "classificationPath": "Classification Path",
       "platforms": "platforms",
       "components": "components",
-      "features": "features"
+      "features": "features",
+      "subFeature": "Sub-feature (Layer 4)",
+      "selectSubFeaturePlaceholder": "Select sub-feature",
+      "noSubFeatureForCurrentFeature": "No sub-features available for current feature"
     }
   },
   "aiGenerate": {
@@ -865,6 +873,10 @@
     "statusDraft": "Draft",
     "statusActive": "Published",
     "statusArchived": "Archived",
+    "priorityP0": "P0 (Critical)",
+    "priorityP1": "P1 (High)",
+    "priorityP2": "P2 (Medium)",
+    "priorityP3": "P3 (Low)",
     "saveDraft": "Save Draft",
     "saveAndPublish": "Save & Publish",
     "runTest": "Run Test",
@@ -1426,6 +1438,12 @@
     "noTestCases": "No test cases",
     "createFirstTestCase": "Create your first test case",
     "allCategories": "All Categories",
+    "priority": "Priority",
+    "allPriorities": "All Priorities",
+    "priorityP0": "P0 (Critical)",
+    "priorityP1": "P1 (High)",
+    "priorityP2": "P2 (Medium)",
+    "priorityP3": "P3 (Low)",
     "allTags": "All Tags",
     "all": "All",
     "draft": "Draft",

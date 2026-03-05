@@ -76,6 +76,8 @@ export function ApiCreateDialog({
     platform: undefined as string | undefined,
     component: undefined as string | undefined,
     feature: undefined as string | undefined,
+    // 子功能（第4层，可选，仅在有父功能时使用）
+    subFeature: '',
   });
   
   // 冲突检测
@@ -108,6 +110,7 @@ export function ApiCreateDialog({
       platform: undefined,
       component: undefined,
       feature: undefined,
+      subFeature: '',
     });
     setTagSearchTerm('');
   };
@@ -306,6 +309,7 @@ export function ApiCreateDialog({
         platform: formData.platform,
         component: formData.component,
         feature: formData.feature,
+        subFeature: formData.subFeature?.trim() || undefined,
       };
 
       // 检查冲突
@@ -522,12 +526,13 @@ export function ApiCreateDialog({
                 />
               </div>
 
-              {/* 四层分类选择器 */}
+              {/* 四层分类选择器（包含子功能第4层） */}
               <FourLayerSelector
                 value={{
                   platform: formData.platform,
                   component: formData.component,
                   feature: formData.feature,
+                  subFeature: formData.subFeature,
                 }}
                 onChange={(classification) => {
                   setFormData({
@@ -535,10 +540,12 @@ export function ApiCreateDialog({
                     platform: classification.platform,
                     component: classification.component,
                     feature: classification.feature,
+                    subFeature: classification.subFeature || '',
                   });
                 }}
                 allowCreate={true}
                 refreshTrigger={open}
+                enableSubFeature={true}
               />
 
               <div className="space-y-2">

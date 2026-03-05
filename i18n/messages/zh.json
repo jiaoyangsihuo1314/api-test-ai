@@ -486,10 +486,12 @@
     "createClassification": {
       "title": "创建分类",
       "description": "手动创建四层分类结构",
+      "descriptionSubFeature": "手动创建五层分类结构",
       "level": "层级",
       "platform": "平台",
       "component": "组件",
       "feature": "功能",
+      "subFeature": "子功能",
       "parentContext": "创建位置",
       "selectPlatform": "选择平台",
       "selectPlatformPlaceholder": "请选择所属平台",
@@ -501,11 +503,14 @@
       "componentNamePlaceholder": "例如：用户模块",
       "featureName": "功能名称",
       "featureNamePlaceholder": "例如：用户管理",
+      "subFeatureName": "子功能名称",
+      "subFeatureNamePlaceholder": "例如：台区工单分布",
       "create": "创建",
       "cancel": "取消",
       "error": "创建失败",
       "addComponent": "添加组件",
-      "addFeature": "添加功能"
+      "addFeature": "添加功能",
+      "addSubFeature": "添加子功能"
     },
     "conflictResolver": {
       "title": "发现重复的API",
@@ -561,7 +566,10 @@
       "classificationPath": "分类路径",
       "platforms": "个平台",
       "components": "个组件",
-      "features": "个功能"
+      "features": "个功能",
+      "subFeature": "子功能（第4层）",
+      "selectSubFeaturePlaceholder": "选择子功能",
+      "noSubFeatureForCurrentFeature": "当前功能下暂无子功能"
     }
   },
   "aiGenerate": {
@@ -865,6 +873,10 @@
     "statusDraft": "草稿",
     "statusActive": "已发布",
     "statusArchived": "已归档",
+    "priorityP0": "P0（核心）",
+    "priorityP1": "P1（高）",
+    "priorityP2": "P2（中）",
+    "priorityP3": "P3（低）",
     "saveDraft": "保存草稿",
     "saveAndPublish": "保存并发布",
     "runTest": "运行测试",
@@ -1426,6 +1438,12 @@
     "noTestCases": "暂无测试用例",
     "createFirstTestCase": "创建您的第一个测试用例",
     "allCategories": "全部分类",
+    "priority": "用例级别",
+    "allPriorities": "全部级别",
+    "priorityP0": "P0（核心）",
+    "priorityP1": "P1（高）",
+    "priorityP2": "P2（中）",
+    "priorityP3": "P3（低）",
     "allTags": "全部标签",
     "all": "全部",
     "draft": "草稿",

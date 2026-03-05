@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   XCircle,
   Tag,
+  Flag,
   FolderOpen,
   X,
   Copy,
@@ -56,7 +57,13 @@ interface TestCase {
   name: string;
   description?: string;
   status: string;
+  priority?: string;
+  // 旧的用例分类字段（已废弃展示）
   category?: string;
+  // 从步骤中的 API 推导出来的仓库分类（平台 / 组件 / 功能）
+  platform?: string | null;
+  component?: string | null;
+  feature?: string | null;
   tags?: string[];
   createdAt: string;
   updatedAt: string;
@@ -71,6 +78,8 @@ interface TestCase {
 
 interface TestCaseListProps {
   testCases: TestCase[];
+  /** API仓库分类筛选变化（平台/组件/功能），传给父组件做服务端查询 */
+  onApiCategoryKeysChange?: (keys: string[]) => void;
   onCreateNew: () => void;
   onEdit: (testCase: TestCase) => void;
   onDelete: (id: string) => void;
@@ -81,6 +90,7 @@ interface TestCaseListProps {
 
 export default function TestCaseList({
   testCases,
+  onApiCategoryKeysChange,
   onCreateNew,
   onEdit,
   onDelete,
@@ -90,9 +100,11 @@ export default function TestCaseList({
 }: TestCaseListProps) {
   const t = useTranslations('testCaseList');
   const tCommon = useTranslations('common');
+  const tCaseTree = useTranslations('testSuites.categoryTree');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedTag, setSelectedTag] = useState<string>('all');
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedTestCase, setSelectedTestCase] = useState<TestCase | null>(null);
   
@@ -125,10 +137,80 @@ export default function TestCaseList({
   // 获取所有标签
   const allTags = Array.from(new Set(testCases.flatMap(tc => parseTags(tc.tags))));
 
-  // 构建API分类树结构
+  // 计算单个用例的 API 仓库分类显示文案（平台 / 组件 / 功能），从步骤中的 API 推导
+  const getApiCategoryLabel = (testCase: TestCase): string | null => {
+    const platform = testCase.platform ?? null;
+    const component = testCase.component ?? null;
+    const feature = testCase.feature ?? null;
+
+    // 三个维度都没有时，视为“未分类”，使用测试套件分类树里的未分类文案
+    if (!platform && !component && !feature) {
+      return tCaseTree('uncategorized');
+    }
+
+    const DEFAULT_PLATFORM = tCaseTree('defaultPlatform');
+    const DEFAULT_COMPONENT = tCaseTree('defaultComponent');
+    const DEFAULT_FEATURE = tCaseTree('defaultFeature');
+
+    const p = platform || DEFAULT_PLATFORM;
+    const c = component || DEFAULT_COMPONENT;
+    const f = feature || DEFAULT_FEATURE;
+
+    return `${p} / ${c} / ${f}`;
+  };
+
+  // 从 featurePath 中提取第 3 层 / 第 4 层名称（支持多级“父功能 > 子功能 > ...”）
+  const getThirdAndFourthFromFeaturePath = (
+    featurePath?: string | null,
+  ): { level3?: string; level4?: string } => {
+    if (!featurePath) return {};
+    const segments = String(featurePath)
+      .split('>')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (segments.length === 0) return {};
+    if (segments.length === 1) {
+      return { level3: segments[0] };
+    }
+
+    const level4 = segments[segments.length - 1];
+    const level3 = segments[segments.length - 2];
+    return { level3, level4 };
+  };
+
+  // 计算单个用例的“手动选择分类”显示文案（编辑页选择的分类优先，展示与编辑页保持一致）
+  const getSelectedCategoryLabel = (testCase: TestCase): string | null => {
+    if (!testCase.category) return null;
+
+    const parts = String(testCase.category)
+      .split('/')
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    const platform = parts[0];
+    const component = parts[1];
+    const featurePath = parts[2];
+    const { level3, level4 } = getThirdAndFourthFromFeaturePath(featurePath);
+
+    // 按“第1层 / 第2层 / 第3层 / 第4层”顺序展示，缺失的层级自动跳过
+    return [platform, component, level3, level4].filter(Boolean).join(' / ');
+  };
+
+  // 提取「父功能 > 子功能」路径中的最后一段名称，用于展示
+  const getLeafName = (value?: string | null) => {
+    if (!value) return value as string | null;
+    const segments = String(value)
+      .split('>')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return segments.length > 0 ? segments[segments.length - 1] : (value as string);
+  };
+
+  // 构建API分类树结构（对齐 API 仓库的四层分类逻辑，保证分类展示一致且完整）
   const buildApiCategoryTree = () => {
     interface TreeNode {
-      type: 'platform' | 'component' | 'feature';
+      type: 'platform' | 'component' | 'feature' | 'subFeature';
       name: string;
       count: number;
       children?: TreeNode[];
@@ -136,20 +218,22 @@ export default function TestCaseList({
         platform?: string;
         component?: string;
         feature?: string;
+        subFeature?: string;
       };
     }
 
     const tree: TreeNode[] = [];
     const platformMap = new Map<string, TreeNode>();
-    const DEFAULT_PLATFORM = '未分类平台';
-    const DEFAULT_COMPONENT = '未分类组件';
-    const DEFAULT_FEATURE = '未分类功能';
+    const DEFAULT_PLATFORM = tCaseTree('defaultPlatform');
+    const DEFAULT_COMPONENT = tCaseTree('defaultComponent');
+    const DEFAULT_FEATURE = tCaseTree('defaultFeature');
 
-    // 从分类结构创建树的骨架
+    // 1）从分类结构创建树的骨架（支持「父功能 > 子功能」多级路径）
     apiCategories.forEach((classification: any) => {
       const { platform, component, feature } = classification;
       if (!platform) return;
 
+      // 平台节点
       if (!platformMap.has(platform)) {
         const platformNode: TreeNode = {
           type: 'platform',
@@ -163,10 +247,12 @@ export default function TestCaseList({
       }
       const platformNode = platformMap.get(platform)!;
 
+      // 组件节点
       if (component) {
-        let componentNode = platformNode.children?.find(
-          (n) => n.name === component && n.type === 'component'
-        );
+        let componentNode =
+          platformNode.children?.find(
+            (n) => n.name === component && n.type === 'component'
+          ) || null;
         if (!componentNode) {
           componentNode = {
             type: 'component',
@@ -178,29 +264,56 @@ export default function TestCaseList({
           platformNode.children!.push(componentNode);
         }
 
+        // 功能 / 子功能节点（支持「父功能 > 子功能」）
         if (feature) {
-          let featureNode = componentNode.children?.find(
-            (n) => n.name === feature && n.type === 'feature'
-          );
-          if (!featureNode) {
-            featureNode = {
-              type: 'feature',
-              name: feature,
-              count: 0,
-              fullPath: { platform, component, feature },
-            };
-            componentNode.children!.push(featureNode);
-          }
+          const segments = String(feature)
+            .split('>')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          if (segments.length === 0) return;
+
+          let currentParent: TreeNode = componentNode;
+          segments.forEach((segmentName, index) => {
+            const isRootFeature = index === 0;
+            const type: TreeNode['type'] = isRootFeature ? 'feature' : 'subFeature';
+
+            let existingNode =
+              currentParent.children?.find(
+                (n) => n.name === segmentName && n.type === type
+              ) || null;
+
+            if (!existingNode) {
+              const pathSegments = segments.slice(0, index + 1);
+              existingNode = {
+                type,
+                name: segmentName,
+                count: 0,
+                children: [],
+                fullPath: {
+                  platform,
+                  component,
+                  feature: pathSegments.join(' > '),
+                  subFeature: type === 'subFeature' ? segmentName : undefined,
+                },
+              };
+              if (!currentParent.children) currentParent.children = [];
+              currentParent.children.push(existingNode);
+            }
+
+            currentParent = existingNode;
+          });
         }
       }
     });
 
-    // 从API统计数量并补充未预定义的分类
+    // 2）从 API 统计数量并补充未预定义的分类（包含归档 API）
     allApis.forEach((api: any) => {
       const platform = api.platform || DEFAULT_PLATFORM;
       const component = api.component || DEFAULT_COMPONENT;
       const feature = api.feature || DEFAULT_FEATURE;
+      const subFeature = api.subFeature || null;
 
+      // 平台
       if (!platformMap.has(platform)) {
         const platformNode: TreeNode = {
           type: 'platform',
@@ -215,9 +328,11 @@ export default function TestCaseList({
       const platformNode = platformMap.get(platform)!;
       platformNode.count++;
 
-      let componentNode = platformNode.children?.find(
-        (n) => n.name === component && n.type === 'component'
-      );
+      // 组件
+      let componentNode =
+        platformNode.children?.find(
+          (n) => n.name === component && n.type === 'component'
+        ) || null;
       if (!componentNode) {
         componentNode = {
           type: 'component',
@@ -230,22 +345,44 @@ export default function TestCaseList({
       }
       componentNode.count++;
 
-      let featureNode = componentNode.children?.find(
-        (n) => n.name === feature && n.type === 'feature'
-      );
+      // 功能（第3层）
+      let featureNode =
+        componentNode.children?.find(
+          (n) => n.name === feature && n.type === 'feature'
+        ) || null;
       if (!featureNode) {
         featureNode = {
           type: 'feature',
           name: feature,
           count: 0,
+          children: [],
           fullPath: { platform, component, feature },
         };
         componentNode.children!.push(featureNode);
       }
       featureNode.count++;
+
+      // 子功能（第4层，可选）
+      if (subFeature) {
+        let subFeatureNode =
+          featureNode.children?.find(
+            (n) => n.name === subFeature && n.type === 'subFeature'
+          ) || null;
+        if (!subFeatureNode) {
+          subFeatureNode = {
+            type: 'subFeature',
+            name: subFeature,
+            count: 0,
+            fullPath: { platform, component, feature, subFeature },
+          };
+          if (!featureNode.children) featureNode.children = [];
+          featureNode.children.push(subFeatureNode);
+        }
+        subFeatureNode.count++;
+      }
     });
 
-    // 排序
+    // 3）排序（与 API 仓库保持一致）
     tree.sort((a, b) => a.name.localeCompare(b.name));
     tree.forEach((platform) => {
       platform.children?.sort((a, b) => a.name.localeCompare(b.name));
@@ -411,14 +548,14 @@ export default function TestCaseList({
   const getApiCategoryDisplayText = (): string => {
     // 确保当没有选中任何分类时，显示"全部分类"
     if (!selectedApiCategories || selectedApiCategories.size === 0) {
-      return '全部分类';
+      return t('allCategories');
     }
     
     // 过滤掉空字符串或无效的分类
     const validCategories = Array.from(selectedApiCategories).filter(cat => cat && cat.trim().length > 0);
     
     if (validCategories.length === 0) {
-      return '全部分类';
+      return t('allCategories');
     }
     
     if (validCategories.length === 1) {
@@ -428,83 +565,25 @@ export default function TestCaseList({
     return `已选择 ${validCategories.length} 个分类`;
   };
 
-  // 检查API是否属于某个分类
-  const isApiInCategory = (api: any, categoryKey: string): boolean => {
-    const parts = categoryKey.split(' / ');
-    const platform = parts[0] || null;
-    const component = parts[1] || null;
-    const feature = parts[2] || null;
-
-    const apiPlatform = api.platform || null;
-    const apiComponent = api.component || null;
-    const apiFeature = api.feature || null;
-
-    // 精确匹配
-    if (platform && component && feature) {
-      return apiPlatform === platform && apiComponent === component && apiFeature === feature;
-    }
-    // 匹配到组件层级
-    if (platform && component && !feature) {
-      return apiPlatform === platform && apiComponent === component;
-    }
-    // 匹配到平台层级
-    if (platform && !component && !feature) {
-      return apiPlatform === platform;
-    }
-    return false;
+  // 将默认分类文本转换为 "__NULL__" 供后端做 IS NULL 查询
+  const normalizeCategoryKeyForRequest = (categoryKey: string): string => {
+    const DEFAULT_PLATFORM = tCaseTree('defaultPlatform');
+    const DEFAULT_COMPONENT = tCaseTree('defaultComponent');
+    const DEFAULT_FEATURE = tCaseTree('defaultFeature');
+    const parts = categoryKey.split(' / ').map((p) => p.trim());
+    const p0 = parts[0] === DEFAULT_PLATFORM ? '__NULL__' : parts[0];
+    const p1 = parts[1] === DEFAULT_COMPONENT ? '__NULL__' : parts[1];
+    const p2 = parts[2] === DEFAULT_FEATURE ? '__NULL__' : parts[2];
+    return [p0, p1, p2].filter(Boolean).join(' / ');
   };
 
-  // 检查测试用例是否使用了选中的分类中的API
-  const testCaseMatchesApiCategories = (testCase: TestCase): boolean => {
-    if (selectedApiCategories.size === 0) return true;
-
-    try {
-      // 解析flowConfig
-      let flowConfig = testCase.flowConfig;
-      if (typeof flowConfig === 'string') {
-        flowConfig = JSON.parse(flowConfig);
-      }
-
-      if (!flowConfig || !flowConfig.nodes) return false;
-
-      // 提取所有API的apiId（包括普通API节点和并发节点中的API）
-      const apiIds: string[] = [];
-      
-      for (const node of flowConfig.nodes) {
-        // 普通API节点
-        if (node.type === 'api' && node.data?.apiId) {
-          apiIds.push(node.data.apiId);
-        }
-        // 并发节点中的API
-        if (node.type === 'parallel' && node.data?.apis && Array.isArray(node.data.apis)) {
-          for (const apiConfig of node.data.apis) {
-            if (apiConfig.apiId) {
-              apiIds.push(apiConfig.apiId);
-            }
-          }
-        }
-      }
-
-      if (apiIds.length === 0) return false;
-
-      // 检查这些API是否属于选中的分类
-      for (const apiId of apiIds) {
-        const api = allApis.find((a: any) => a.id === apiId);
-        if (api) {
-          // 检查API是否属于任何一个选中的分类
-          for (const categoryKey of selectedApiCategories) {
-            if (isApiInCategory(api, categoryKey)) {
-              return true; // 只要有一个API匹配，就返回true
-            }
-          }
-        }
-      }
-      return false;
-    } catch (error) {
-      console.error('Error parsing flowConfig:', error);
-      return false;
-    }
-  };
+  // 选中分类变化时通知父组件做服务端查询
+  useEffect(() => {
+    if (!onApiCategoryKeysChange) return;
+    const keys = Array.from(selectedApiCategories).map(normalizeCategoryKeyForRequest);
+    onApiCategoryKeysChange(keys);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedApiCategories]);
 
   // 渲染API分类树节点
   const renderApiTreeNode = (node: any, level: number = 0): React.ReactNode => {
@@ -583,10 +662,14 @@ export default function TestCaseList({
           </div>
 
           <Icon className="h-4 w-4 flex-shrink-0" />
-          <span className="truncate max-w-[150px]">{node.name}</span>
+          <span className="truncate max-w-[150px]">
+            {node.type === 'platform' || node.type === 'component'
+              ? node.name
+              : getLeafName(node.fullPath?.feature || node.name)}
+          </span>
           <Badge
             variant="outline"
-            className="text-xs ml-auto flex-shrink-0"
+            className="hidden text-xs ml-auto flex-shrink-0"
           >
             {node.count}
           </Badge>
@@ -609,8 +692,9 @@ export default function TestCaseList({
       tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesStatus = statusFilter === 'all' || testCase.status === statusFilter;
     const matchesTag = selectedTag === 'all' || tags.includes(selectedTag);
-    const matchesApiCategory = testCaseMatchesApiCategories(testCase);
-    return matchesSearch && matchesStatus && matchesTag && matchesApiCategory;
+    const matchesPriority =
+      priorityFilter === 'all' || (testCase.priority || 'P2') === priorityFilter;
+    return matchesSearch && matchesStatus && matchesTag && matchesPriority;
   });
 
   // 加载API仓库分类数据
@@ -624,8 +708,8 @@ export default function TestCaseList({
           setApiCategories(classificationsResult.data);
         }
         
-        // 加载所有API（用于构建分类树）
-        const apisResponse = await fetch('/api/api-library/list?page=1&pageSize=10000');
+        // 加载所有API（用于构建分类树，包含已归档的API，保证分类完整）
+        const apisResponse = await fetch('/api/api-library/list?page=1&pageSize=10000&includeArchived=true');
         const apisResult = await apisResponse.json();
         if (apisResult.success) {
           setAllApis(apisResult.data);
@@ -641,7 +725,7 @@ export default function TestCaseList({
   // 当筛选条件改变时，重置选择
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [searchQuery, statusFilter, selectedTag, selectedApiCategories]);
+  }, [searchQuery, statusFilter, selectedTag, priorityFilter, selectedApiCategories]);
 
   // 格式化时间
   const formatDate = (dateString: string) => {
@@ -774,6 +858,7 @@ export default function TestCaseList({
             )}
           </div>
 
+          {/* 用例分类筛选（按 testCase.category 服务端筛选） */}
           {/* API仓库分类筛选 */}
           <DropdownMenu open={apiCategoryPopoverOpen} onOpenChange={setApiCategoryPopoverOpen}>
             <DropdownMenuTrigger asChild>
@@ -785,8 +870,11 @@ export default function TestCaseList({
                 <span className="truncate">{getApiCategoryDisplayText()}</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-[300px] p-0" align="start">
-              <ScrollArea className="max-h-[400px]">
+            <DropdownMenuContent
+              className="w-[300px] max-h-[400px] overflow-y-auto p-0"
+              align="start"
+            >
+              <div className="max-h-[400px] overflow-y-auto">
                 <div className="p-2">
                   {/* 全部选项 - 使用 div 避免 button 嵌套 Checkbox(button) 导致的水合错误 */}
                   <div
@@ -812,7 +900,7 @@ export default function TestCaseList({
                       <FileText className="h-4 w-4" />
                       <span>全部分类</span>
                     </div>
-                    <Badge variant="outline">
+                    <Badge variant="outline" className="hidden">
                       {allApis.length}
                     </Badge>
                   </div>
@@ -828,9 +916,49 @@ export default function TestCaseList({
                     </div>
                   )}
                 </div>
-              </ScrollArea>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* 用例级别筛选 */}
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="w-[140px] h-9">
+              <Flag className="h-3.5 w-3.5 mr-1.5" />
+              <SelectValue placeholder={t('priority')} />
+            </SelectTrigger>
+            <SelectContent className="min-w-[180px]">
+              <SelectItem value="all">
+                <span className="flex items-center gap-2 whitespace-nowrap">
+                  <span className="size-2.5 shrink-0 rounded-full bg-muted-foreground/40" aria-hidden />
+                  <span>{t('allPriorities')}</span>
+                </span>
+              </SelectItem>
+              <SelectItem value="P0">
+                <span className="flex items-center gap-2 whitespace-nowrap">
+                  <span className="size-2.5 shrink-0 rounded-full bg-rose-400" aria-hidden />
+                  <span>{t('priorityP0')}</span>
+                </span>
+              </SelectItem>
+              <SelectItem value="P1">
+                <span className="flex items-center gap-2 whitespace-nowrap">
+                  <span className="size-2.5 shrink-0 rounded-full bg-amber-400" aria-hidden />
+                  <span>{t('priorityP1')}</span>
+                </span>
+              </SelectItem>
+              <SelectItem value="P2">
+                <span className="flex items-center gap-2 whitespace-nowrap">
+                  <span className="size-2.5 shrink-0 rounded-full bg-sky-400" aria-hidden />
+                  <span>{t('priorityP2')}</span>
+                </span>
+              </SelectItem>
+              <SelectItem value="P3">
+                <span className="flex items-center gap-2 whitespace-nowrap">
+                  <span className="size-2.5 shrink-0 rounded-full bg-gray-400" aria-hidden />
+                  <span>{t('priorityP3')}</span>
+                </span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
 
           {/* 标签筛选 */}
           <Select value={selectedTag} onValueChange={setSelectedTag}>
@@ -859,7 +987,11 @@ export default function TestCaseList({
           </Tabs>
 
           {/* 清空筛选 */}
-          {(searchQuery || selectedTag !== 'all' || statusFilter !== 'all' || selectedApiCategories.size > 0) && (
+          {(searchQuery ||
+            selectedTag !== 'all' ||
+            statusFilter !== 'all' ||
+            priorityFilter !== 'all' ||
+            selectedApiCategories.size > 0) && (
             <Button
               variant="ghost"
               size="sm"
@@ -867,6 +999,7 @@ export default function TestCaseList({
                 setSearchQuery('');
                 setSelectedTag('all');
                 setStatusFilter('all');
+                setPriorityFilter('all');
                 setSelectedApiCategories(new Set());
               }}
               className="gap-1 h-9 px-3"
@@ -905,6 +1038,8 @@ export default function TestCaseList({
               {filteredTestCases.map((testCase) => {
                 const tags = parseTags(testCase.tags);
                 const successRate = getSuccessRate(testCase);
+                const categoryLabel =
+                  getSelectedCategoryLabel(testCase) || getApiCategoryLabel(testCase);
                 
                 return (
                   <Card 
@@ -940,6 +1075,19 @@ export default function TestCaseList({
                               {testCase.status === 'active' && t('active')}
                               {testCase.status === 'archived' && t('archived')}
                             </Badge>
+                            <Badge variant="outline" className="shrink-0 flex items-center gap-1.5">
+                              <span
+                                className={cn(
+                                  'size-2 shrink-0 rounded-full',
+                                  (testCase.priority || 'P2') === 'P0' && 'bg-rose-400',
+                                  (testCase.priority || 'P2') === 'P1' && 'bg-amber-400',
+                                  (testCase.priority || 'P2') === 'P2' && 'bg-sky-400',
+                                  (testCase.priority || 'P2') === 'P3' && 'bg-gray-400'
+                                )}
+                                aria-hidden
+                              />
+                              {testCase.priority || 'P2'}
+                            </Badge>
                             <h3 className="font-semibold truncate group-hover:text-primary transition-colors">
                               {testCase.name}
                             </h3>
@@ -952,13 +1100,13 @@ export default function TestCaseList({
                             </p>
                           )}
 
-                          {/* 第三行：分类、标签、统计信息 */}
+                          {/* 第三行：API 仓库分类、标签、统计信息 */}
                           <div className="flex items-center gap-4 text-sm flex-wrap">
-                            {/* 分类 */}
-                            {testCase.category && (
+                            {/* 用例分类（优先使用编辑页选择的分类，其次使用从步骤推导的 API 仓库分类） */}
+                            {categoryLabel && (
                               <Badge variant="outline" className="gap-1">
                                 <FolderOpen className="h-3 w-3" />
-                                {testCase.category}
+                                {categoryLabel}
                               </Badge>
                             )}
 

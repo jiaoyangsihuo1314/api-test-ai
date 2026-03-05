@@ -23,6 +23,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { X, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { FourLayerSelector } from '@/components/api-repository/FourLayerSelector';
 
 interface ApiEditDialogProps {
   open: boolean;
@@ -58,66 +59,13 @@ export function ApiEditDialog({
     platform: '',
     component: '',
     feature: '',
+    subFeature: '',
     selectedTags: [] as string[],
   });
 
   // HTTP 方法列表
   const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
   const [tagSearchTerm, setTagSearchTerm] = useState('');
-
-  // 从 categories（预定义分类）和 allApis（已有API）中提取所有可用的分类选项
-  // 合并两个数据源，确保显示所有可用的平台
-  const platforms = Array.from(
-    new Set([
-      ...categories.filter(c => c.platform).map(c => c.platform),
-      ...allApis.filter(a => a.platform).map(a => a.platform)
-    ])
-  ).sort();
-
-  // 调试日志
-  if (open) {
-    console.log('🔍 ApiEditDialog 数据加载情况:');
-    console.log('  - categories 数量:', categories.length);
-    console.log('  - allApis 数量:', allApis.length);
-    console.log('  - 提取的平台列表:', platforms);
-    console.log('  - categories 详情:', categories);
-  }
-
-  const components = formData.platform
-    ? Array.from(
-        new Set([
-          ...categories
-            .filter(c => c.platform === formData.platform && c.component)
-            .map(c => c.component),
-          ...allApis
-            .filter(a => a.platform === formData.platform && a.component)
-            .map(a => a.component)
-        ])
-      ).sort()
-    : [];
-
-  const features = formData.platform && formData.component
-    ? Array.from(
-        new Set([
-          ...categories
-            .filter(
-              c =>
-                c.platform === formData.platform &&
-                c.component === formData.component &&
-                c.feature
-            )
-            .map(c => c.feature),
-          ...allApis
-            .filter(
-              a =>
-                a.platform === formData.platform &&
-                a.component === formData.component &&
-                a.feature
-            )
-            .map(a => a.feature)
-        ])
-      ).sort()
-    : [];
 
   useEffect(() => {
     if (open) {
@@ -137,6 +85,7 @@ export function ApiEditDialog({
         platform: api.platform || '',
         component: api.component || '',
         feature: api.feature || '',
+        subFeature: api.subFeature || '',
         selectedTags: api.tags?.map((t: any) => t.tagId) || [],
       });
     } else {
@@ -149,6 +98,7 @@ export function ApiEditDialog({
         platform: '',
         component: '',
         feature: '',
+        subFeature: '',
         selectedTags: [],
       });
     }
@@ -175,6 +125,7 @@ export function ApiEditDialog({
           platform: formData.platform || null,
           component: formData.component || null,
           feature: formData.feature || null,
+          subFeature: formData.subFeature || null,
           tags: formData.selectedTags,
         }),
       });
@@ -375,94 +326,27 @@ export function ApiEditDialog({
               </div>
             </div>
 
-            {/* 四层分类 - 级联下拉选择 */}
-            <div className="space-y-3 border border-[#e5e7eb] dark:border-[#4b5563] rounded-md p-4 bg-muted/30">
-              <Label className="text-base font-semibold">{t('classification')}</Label>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {/* 平台 */}
-                <div className="space-y-2">
-                  <Label htmlFor="platform" className="text-xs">{t('platform')}</Label>
-                  <Select
-                    value={formData.platform}
-                    onValueChange={(value) => {
-                      setFormData({
-                        ...formData,
-                        platform: value,
-                        component: '', // 重置组件
-                        feature: '', // 重置功能
-                      });
-                    }}
-                  >
-                    <SelectTrigger id="platform">
-                      <SelectValue placeholder={t('platformPlaceholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {platforms.map((p) => (
-                        <SelectItem key={p} value={p}>
-                          {p}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* 组件 */}
-                <div className="space-y-2">
-                  <Label htmlFor="component" className="text-xs">{t('component')}</Label>
-                  <Select
-                    value={formData.component}
-                    onValueChange={(value) => {
-                      setFormData({
-                        ...formData,
-                        component: value,
-                        feature: '', // 重置功能
-                      });
-                    }}
-                    disabled={!formData.platform}
-                  >
-                    <SelectTrigger id="component">
-                      <SelectValue placeholder={t('componentPlaceholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {components.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* 功能 */}
-                <div className="space-y-2">
-                  <Label htmlFor="feature" className="text-xs">{t('feature')}</Label>
-                  <Select
-                    value={formData.feature}
-                    onValueChange={(value) => {
-                      setFormData({
-                        ...formData,
-                        feature: value,
-                      });
-                    }}
-                    disabled={!formData.component}
-                  >
-                    <SelectTrigger id="feature">
-                      <SelectValue placeholder={t('featurePlaceholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {features.map((f) => (
-                        <SelectItem key={f} value={f}>
-                          {f}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {t('classificationHint')}
-              </div>
-            </div>
+            {/* 四层分类选择器（包含子功能第4层） */}
+            <FourLayerSelector
+              value={{
+                platform: formData.platform,
+                component: formData.component,
+                feature: formData.feature,
+                subFeature: formData.subFeature,
+              }}
+              onChange={(classification) => {
+                setFormData({
+                  ...formData,
+                  platform: classification.platform || '',
+                  component: classification.component || '',
+                  feature: classification.feature || '',
+                  subFeature: classification.subFeature || '',
+                });
+              }}
+              allowCreate={true}
+              refreshTrigger={open}
+              enableSubFeature={true}
+            />
 
             <div className="space-y-2">
               <Label>{t('tags')}</Label>

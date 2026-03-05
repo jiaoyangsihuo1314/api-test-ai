@@ -28,7 +28,7 @@ model Api {
   platform    String? // 平台名称（第1层）
   component   String? // 组件名称（第2层）
   feature     String? // 功能名称（第3层）
-  // API动作本身是第4层
+  subFeature  String? // 子功能名称（第4层）
   
   // 分类和标签（保留原有的简单分类，用于向后兼容）
   categoryId String?
@@ -85,6 +85,7 @@ model Api {
   @@index([platform])
   @@index([component])
   @@index([feature])
+  @@index([subFeature])
   @@index([importSource])
 }
 
@@ -164,6 +165,10 @@ model TestCase {
   
   // 状态
   status String @default("draft") // draft, active, archived
+
+  // 用例级别/优先级（方案A：挂在 TestCase 上）
+  // P0(核心) / P1(高) / P2(中) / P3(低)
+  priority String @default("P2")
   
   // 分类和标签
   category String? // 分类名称
@@ -190,6 +195,7 @@ model TestCase {
   updatedByUser User? @relation("TestCaseUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
   
   @@index([status])
+  @@index([priority])
   @@index([category])
   @@index([createdAt])
   @@index([createdBy])

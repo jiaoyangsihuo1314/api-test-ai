@@ -86,6 +86,7 @@ export function BatchSaveDialog({
     platform?: string;
     component?: string;
     feature?: string;
+    subFeature?: string;
   }>({});
 
   // 新建分类
@@ -320,6 +321,7 @@ export function BatchSaveDialog({
           platform: classification.platform,
           component: classification.component,
           feature: classification.feature,
+          subFeature: classification.subFeature?.trim() || undefined,
           importSource: 'recording',
         };
       });
@@ -551,6 +553,7 @@ export function BatchSaveDialog({
                 value={classification}
                 onChange={setClassification}
                 allowCreate={true}
+                enableSubFeature={true}
               />
             </div>
 

@@ -46,6 +46,16 @@ const METHOD_COLORS: Record<string, string> = {
   PATCH: 'bg-purple-500 hover:bg-purple-600',
 };
 
+// 提取「父功能 > 子功能」路径中的最后一段名称，用于展示
+const getLeafName = (value?: string | null) => {
+  if (!value) return value;
+  const segments = value
+    .split('>')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return segments.length > 0 ? segments[segments.length - 1] : value;
+};
+
 export default function ApiRepositoryPage() {
   const { toast } = useToast();
   const t = useTranslations('apiRepository');
@@ -76,7 +86,7 @@ export default function ApiRepositoryPage() {
   const [editingApi, setEditingApi] = useState<any>(null);
   const [apiCreateDialogOpen, setApiCreateDialogOpen] = useState(false);
   const [createClassificationDialogOpen, setCreateClassificationDialogOpen] = useState(false);
-  const [createParentContext, setCreateParentContext] = useState<{platform?: string; component?: string} | undefined>(undefined);
+  const [createParentContext, setCreateParentContext] = useState<{platform?: string; component?: string; feature?: string} | undefined>(undefined);
   const [editClassificationDialogOpen, setEditClassificationDialogOpen] = useState(false);
   const [editingNode, setEditingNode] = useState<any>(null);
   const [deleteConfirmDialogOpen, setDeleteConfirmDialogOpen] = useState(false);
@@ -90,6 +100,7 @@ export default function ApiRepositoryPage() {
     platform?: string;
     component?: string;
     feature?: string;
+    subFeature?: string;
     isStarred?: boolean;
   }>({});
 
@@ -173,6 +184,9 @@ export default function ApiRepositoryPage() {
       }
       if (fourLayerFilter.feature) {
         params.append('feature', fourLayerFilter.feature);
+      }
+      if (fourLayerFilter.subFeature) {
+        params.append('subFeature', fourLayerFilter.subFeature);
       }
       if (fourLayerFilter.isStarred) {
         params.append('isStarred', 'true');
@@ -449,9 +463,9 @@ export default function ApiRepositoryPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex h-full min-h-0">
       {/* 左侧四层分类树 */}
-      <div className="w-64 flex-shrink-0">
+      <div className="w-72 flex-shrink-0 min-h-0">
         <FourLayerTree
           apis={allApis}
           classifications={classifications}
@@ -463,6 +477,8 @@ export default function ApiRepositoryPage() {
               setCreateParentContext({
                 platform: node.fullPath.platform,
                 component: node.fullPath.component,
+                // 如果是功能层或更深层，记录当前功能路径，后续在对话框中用于生成“父功能 > 子功能”
+                feature: node.fullPath.feature,
               });
             } else {
               // 如果是顶部的+按钮，清空父级上下文（创建平台）
@@ -476,7 +492,7 @@ export default function ApiRepositoryPage() {
       </div>
 
       {/* 右侧内容区 */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* 顶部工具栏：单行布局，左侧统计+搜索，右侧操作按钮分组 */}
         <div className="p-4 border-b border-[#e5e7eb] dark:border-[#4b5563] bg-background">
           <div className="flex flex-wrap items-center gap-3">
@@ -557,7 +573,7 @@ export default function ApiRepositoryPage() {
         </div>
 
         {/* API列表 */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 min-h-0 overflow-y-auto p-6">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <p className="text-muted-foreground">{tCommon('loading')}</p>
@@ -639,7 +655,7 @@ export default function ApiRepositoryPage() {
                                   <>
                                     {(api.platform || api.component) && <span className="text-muted-foreground">/</span>}
                                     <Badge variant="outline" className="text-xs">
-                                      {api.feature}
+                                      {getLeafName(api.feature)}
                                     </Badge>
                                   </>
                                 )}

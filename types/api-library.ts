@@ -56,6 +56,13 @@ export interface ApiFourLayerClassification {
   platform?: string;
   component?: string;
   feature?: string;
+  /**
+   * 子功能（第4层，可选）
+   * 说明：目前数据库中没有单独的 subFeature 字段，
+   * 实际入库时会将「功能 > 子功能」编码到 feature 字段中。
+   * 该字段主要用于前端选择和筛选体验，以及与部分接口返回保持类型一致。
+   */
+  subFeature?: string;
 }
 
 /**

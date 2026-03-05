@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
       platform?: string;
       component?: string;
       feature?: string;
+      subFeature?: string;
       importSource?: string;
       _overwrite?: boolean;
     }> };
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
             platform: (api as any).platform || null,
             component: (api as any).component || null,
             feature: (api as any).feature || null,
+            subFeature: (api as any).subFeature || null,
             
             // 导入来源
             importSource: (api as any).importSource || 'har',
@@ -124,7 +126,7 @@ export async function POST(request: NextRequest) {
           let savedApi;
           if ((api as any)._overwrite && api.id) {
             // 覆盖模式：更新现有API
-            console.log(`🔄 [覆盖模式] 更新API: ${api.id} - ${api.name} | 分类: ${apiData.platform}/${apiData.component}/${apiData.feature}`);
+            console.log(`🔄 [覆盖模式] 更新API: ${api.id} - ${api.name} | 分类: ${apiData.platform}/${apiData.component}/${apiData.feature}/${apiData.subFeature || '-'}`);
             
             try {
               savedApi = await prisma.api.update({

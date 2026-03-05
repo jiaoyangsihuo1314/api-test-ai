@@ -4,6 +4,17 @@ import { getCurrentUser } from '@/lib/auth';
 import { safeJsonParse, safeJsonStringify } from '@/lib/json-utils';
 import { logger, OperationType } from '@/lib/logger';
 
+const ALLOWED_PRIORITIES = new Set(['P0', 'P1', 'P2', 'P3'] as const);
+function normalizePriority(input: any): 'P0' | 'P1' | 'P2' | 'P3' {
+  if (input == null || input === '') {
+    return 'P2';
+  }
+  if (typeof input !== 'string' || !ALLOWED_PRIORITIES.has(input as any)) {
+    throw new Error(`Invalid priority: ${String(input)}`);
+  }
+  return input as any;
+}
+
 // 清理节点中的执行结果（后端保护层）
 function cleanExecutionFromFlowConfig(flowConfig: any): any {
   if (!flowConfig || !flowConfig.nodes) {
@@ -124,7 +135,7 @@ export async function PUT(
     const userId = currentUser?.user?.id ?? null;
 
     const body = await request.json();
-    const { name, description, status, category, tags, flowConfig, steps } = body;
+    const { name, description, status, category, tags, priority, flowConfig, steps } = body;
 
     logger.apiRequest('PUT', `/api/test-cases/${id}`, OperationType.UPDATE, {
       name,
@@ -134,6 +145,7 @@ export async function PUT(
 
     // 清理 flowConfig 中的执行结果（后端保护层）
     const cleanedFlowConfig = cleanExecutionFromFlowConfig(flowConfig);
+    const normalizedPriority = normalizePriority(priority);
 
     // 使用事务确保删除和更新操作的原子性
     logger.db(OperationType.UPDATE, 'TestCase', 'transaction', { id, name, stepsCount: steps?.length });
@@ -151,6 +163,7 @@ export async function PUT(
           name,
           description,
           status,
+          priority: normalizedPriority,
           category: category || null,
           tags: safeJsonStringify(tags),
           flowConfig: safeJsonStringify(cleanedFlowConfig),

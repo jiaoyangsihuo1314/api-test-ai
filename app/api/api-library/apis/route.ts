@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
       platform,
       component,
       feature,
+      subFeature,
     } = body;
 
     // 验证必填字段
@@ -171,6 +172,7 @@ export async function POST(request: NextRequest) {
         platform: platform || null,
         component: component || null,
         feature: feature || null,
+        subFeature: subFeature || null,
         requestHeaders: safeJsonStringify(requestHeaders),
         requestQuery: safeJsonStringify(requestQuery),
         requestBody: safeJsonStringify(requestBody),

@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Save, Play, ArrowLeft, FileDown, Loader2, Tag, X } from 'lucide-react';
+import { Save, Play, ArrowLeft, FileDown, Loader2, Tag, X, Layers, Box, Grid, ChevronRight, ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import FlowCanvas from '@/components/test-orchestration/FlowCanvas';
 import NodePalette from '@/components/test-orchestration/NodePalette';
@@ -26,15 +26,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
 
 type ViewMode = 'list' | 'edit';
+type TestCasePriority = 'P0' | 'P1' | 'P2' | 'P3';
+
+function toTestCasePriority(value: unknown): TestCasePriority {
+  return value === 'P0' || value === 'P1' || value === 'P2' || value === 'P3' ? value : 'P2';
+}
 
 interface TestCase {
   id: string;
   name: string;
   description?: string;
   status: string;
+  priority?: string;
   category?: string;
+  platform?: string | null;
+  component?: string | null;
+  feature?: string | null;
   tags?: string[];
   createdAt: string;
   updatedAt: string;
@@ -56,11 +71,42 @@ function cleanExecutionFromNodes(nodes: Node[]): Node[] {
   });
 }
 
+// 提取「父功能 > 子功能」路径中的最后一段名称，用于展示
+function getLeafName(value?: string | null) {
+  if (!value) return value as string | null;
+  const segments = String(value)
+    .split('>')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return segments.length > 0 ? segments[segments.length - 1] : (value as string);
+}
+
+// 从 featurePath 中提取第 3 层 / 第 4 层名称（支持多级“父功能 > 子功能 > ...”）
+function getThirdAndFourthFromFeaturePath(
+  featurePath?: string | null,
+): { level3?: string; level4?: string } {
+  if (!featurePath) return {};
+  const segments = String(featurePath)
+    .split('>')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (segments.length === 0) return {};
+  if (segments.length === 1) {
+    return { level3: segments[0] };
+  }
+
+  const level4 = segments[segments.length - 1];
+  const level3 = segments[segments.length - 2];
+  return { level3, level4 };
+}
+
 export default function TestOrchestrationPage() {
   const { toast } = useToast();
   const t = useTranslations('testOrchestration');
   const tCommon = useTranslations('common');
   const tExecution = useTranslations('execution');
+  const tCaseTree = useTranslations('testSuites.categoryTree');
   
   // 视图模式：列表或编辑
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -68,7 +114,10 @@ export default function TestOrchestrationPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [apiCategoryKeys, setApiCategoryKeys] = useState<string[]>([]); // API仓库分类筛选（平台/组件/功能）
   const pageSize = 20;
+  // 记录最近一次列表查询参数，防止相同条件下重复请求导致接口被频繁刷取
+  const lastListQueryRef = useRef<string | null>(null);
   
   // 编辑模式的状态
   const [currentTestCaseId, setCurrentTestCaseId] = useState<string | null>(null);
@@ -76,9 +125,17 @@ export default function TestOrchestrationPage() {
   const [testCaseName, setTestCaseName] = useState('未命名用例');
   const [testCaseDescription, setTestCaseDescription] = useState('');
   const [testCaseStatus, setTestCaseStatus] = useState('draft');
+  const [testCasePriority, setTestCasePriority] = useState<TestCasePriority>('P0');
   const [testCaseCategory, setTestCaseCategory] = useState('');
   const [testCaseTags, setTestCaseTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+
+  // 用例编辑时的 API 仓库分类树数据
+  const [editApiCategories, setEditApiCategories] = useState<any[]>([]);
+  const [editAllApis, setEditAllApis] = useState<any[]>([]);
+  const [editCategoryDropdownOpen, setEditCategoryDropdownOpen] = useState(false);
+  const [editExpandedCategoryNodes, setEditExpandedCategoryNodes] = useState<Set<string>>(new Set());
+  const [editCategoryDisplay, setEditCategoryDisplay] = useState<string>('');
   
   // 使用撤销/重做功能
   const {
@@ -141,17 +198,38 @@ export default function TestOrchestrationPage() {
     };
   }, []);
 
+  // 离开列表视图时，清空最近查询 key，确保回到列表时会重新加载
+  useEffect(() => {
+    if (viewMode === 'edit') {
+      lastListQueryRef.current = null;
+    }
+  }, [viewMode]);
+
   // 加载测试用例列表
   useEffect(() => {
     if (viewMode === 'list') {
       loadTestCases();
     }
-  }, [viewMode, page]);
+  }, [viewMode, page, apiCategoryKeys]);
 
-  const loadTestCases = async () => {
+  const loadTestCases = async (options?: { force?: boolean }) => {
+    // 根据当前分页与分类筛选构造查询 key，用于去重
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (apiCategoryKeys.length > 0) {
+      params.set('apiCategories', JSON.stringify(apiCategoryKeys));
+    }
+    const queryKey = params.toString();
+
+    // 如果不是强制刷新，且查询条件与上一次完全一致，则不再重复请求，
+    // 避免在某些渲染循环场景下疯狂打接口
+    if (!options?.force && lastListQueryRef.current === queryKey) {
+      return;
+    }
+    lastListQueryRef.current = queryKey;
+
     try {
       setLoading(true);
-      const response = await fetch(`/api/test-cases?page=${page}&pageSize=${pageSize}`);
+      const response = await fetch(`/api/test-cases?${params.toString()}`);
       const result = await response.json();
       
       if (result.success) {
@@ -197,6 +275,7 @@ export default function TestOrchestrationPage() {
           name: newTestCaseName,
           description: '',
           status: 'draft',
+          priority: 'P0',
           category: null,
           tags: [],
           flowConfig: {
@@ -217,7 +296,10 @@ export default function TestOrchestrationPage() {
         setTestCaseName(newTestCaseName);
         setTestCaseDescription('');
         setTestCaseStatus('draft');
+        setTestCasePriority('P0');
         setTestCaseCategory('');
+        setEditCategoryDisplay('');
+        setEditCategoryDropdownOpen(false);
         setTestCaseTags([]);
         setTagInput('');
         setCurrentTestCaseCreatedBy(null);
@@ -263,7 +345,6 @@ export default function TestOrchestrationPage() {
   // 获取所有已有的分类和标签
   const existingCategories = Array.from(new Set(testCases.map(tc => tc.category).filter(Boolean))) as string[];
   const existingTags = Array.from(new Set(testCases.flatMap(tc => parseTags(tc.tags))));
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
 
   // 编辑现有编排
@@ -276,7 +357,9 @@ export default function TestOrchestrationPage() {
     setTestCaseName(testCase.name);
     setTestCaseDescription(testCase.description || '');
     setTestCaseStatus(testCase.status);
+    setTestCasePriority(toTestCasePriority(testCase.priority));
     setTestCaseCategory(testCase.category || '');
+    setEditCategoryDisplay(testCase.category || '');
     setTestCaseTags(parseTags(testCase.tags));
     setTagInput('');
     setCurrentTestCaseCreatedBy((testCase as any).createdByUser?.loginName ?? null);
@@ -318,6 +401,302 @@ export default function TestOrchestrationPage() {
     setViewMode('edit');
   };
 
+  // 编辑模式下加载 API 仓库分类数据（构建分类树）
+  useEffect(() => {
+    if (viewMode !== 'edit') return;
+
+    const loadApiCategoriesForEdit = async () => {
+      try {
+        const classificationsResponse = await fetch('/api/api-library/classifications');
+        const classificationsResult = await classificationsResponse.json();
+        if (classificationsResult.success) {
+          setEditApiCategories(classificationsResult.data);
+        }
+
+        const apisResponse = await fetch('/api/api-library/list?page=1&pageSize=10000&includeArchived=true');
+        const apisResult = await apisResponse.json();
+        if (apisResult.success) {
+          setEditAllApis(apisResult.data);
+        }
+      } catch (error) {
+        console.error('Failed to load API categories for edit page:', error);
+      }
+    };
+
+    loadApiCategoriesForEdit();
+  }, [viewMode]);
+
+  // 构建编辑页使用的 API 分类树
+  interface EditTreeNode {
+    type: 'platform' | 'component' | 'feature' | 'subFeature';
+    name: string;
+    count: number;
+    children?: EditTreeNode[];
+    fullPath: {
+      platform?: string;
+      component?: string;
+      feature?: string;
+      subFeature?: string;
+    };
+  }
+
+  const buildEditApiCategoryTree = (): EditTreeNode[] => {
+    const tree: EditTreeNode[] = [];
+    const platformMap = new Map<string, EditTreeNode>();
+    const DEFAULT_PLATFORM = tCaseTree('defaultPlatform');
+    const DEFAULT_COMPONENT = tCaseTree('defaultComponent');
+    const DEFAULT_FEATURE = tCaseTree('defaultFeature');
+
+    // 从 classifications 创建骨架，支持「父功能 > 子功能」
+    editApiCategories.forEach((classification: any) => {
+      const { platform, component, feature } = classification;
+      if (!platform) return;
+
+      if (!platformMap.has(platform)) {
+        const platformNode: EditTreeNode = {
+          type: 'platform',
+          name: platform,
+          count: 0,
+          children: [],
+          fullPath: { platform },
+        };
+        platformMap.set(platform, platformNode);
+        tree.push(platformNode);
+      }
+      const platformNode = platformMap.get(platform)!;
+
+      if (component) {
+        let componentNode =
+          platformNode.children?.find(
+            (n) => n.name === component && n.type === 'component'
+          ) || null;
+        if (!componentNode) {
+          componentNode = {
+            type: 'component',
+            name: component,
+            count: 0,
+            children: [],
+            fullPath: { platform, component },
+          };
+          platformNode.children!.push(componentNode);
+        }
+
+        if (feature) {
+          const segments = String(feature)
+            .split('>')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          if (segments.length === 0) return;
+
+          let currentParent: EditTreeNode = componentNode;
+          segments.forEach((segmentName, index) => {
+            const isRootFeature = index === 0;
+            const type: EditTreeNode['type'] = isRootFeature ? 'feature' : 'subFeature';
+
+            let existingNode =
+              currentParent.children?.find(
+                (n) => n.name === segmentName && n.type === type
+              ) || null;
+
+            if (!existingNode) {
+              const pathSegments = segments.slice(0, index + 1);
+              existingNode = {
+                type,
+                name: segmentName,
+                count: 0,
+                children: [],
+                fullPath: {
+                  platform,
+                  component,
+                  feature: pathSegments.join(' > '),
+                  subFeature: type === 'subFeature' ? segmentName : undefined,
+                },
+              };
+              if (!currentParent.children) currentParent.children = [];
+              currentParent.children.push(existingNode);
+            }
+
+            currentParent = existingNode;
+          });
+        }
+      }
+    });
+
+    // 从所有 API 补充分类并统计数量（包含归档）
+    editAllApis.forEach((api: any) => {
+      const platform = api.platform || DEFAULT_PLATFORM;
+      const component = api.component || DEFAULT_COMPONENT;
+      const feature = api.feature || DEFAULT_FEATURE;
+      const subFeature = api.subFeature || null;
+
+      if (!platformMap.has(platform)) {
+        const platformNode: EditTreeNode = {
+          type: 'platform',
+          name: platform,
+          count: 0,
+          children: [],
+          fullPath: { platform },
+        };
+        platformMap.set(platform, platformNode);
+        tree.push(platformNode);
+      }
+      const platformNode = platformMap.get(platform)!;
+      platformNode.count++;
+
+      let componentNode =
+        platformNode.children?.find(
+          (n) => n.name === component && n.type === 'component'
+        ) || null;
+      if (!componentNode) {
+        componentNode = {
+          type: 'component',
+          name: component,
+          count: 0,
+          children: [],
+          fullPath: { platform, component },
+        };
+        platformNode.children!.push(componentNode);
+      }
+      componentNode.count++;
+
+      let featureNode =
+        componentNode.children?.find(
+          (n) => n.name === feature && n.type === 'feature'
+        ) || null;
+      if (!featureNode) {
+        featureNode = {
+          type: 'feature',
+          name: feature,
+          count: 0,
+          children: [],
+          fullPath: { platform, component, feature },
+        };
+        componentNode.children!.push(featureNode);
+      }
+      featureNode.count++;
+
+      if (subFeature) {
+        let subFeatureNode =
+          featureNode.children?.find(
+            (n) => n.name === subFeature && n.type === 'subFeature'
+          ) || null;
+        if (!subFeatureNode) {
+          subFeatureNode = {
+            type: 'subFeature',
+            name: subFeature,
+            count: 0,
+            fullPath: { platform, component, feature, subFeature },
+          };
+          if (!featureNode.children) featureNode.children = [];
+          featureNode.children.push(subFeatureNode);
+        }
+        subFeatureNode.count++;
+      }
+    });
+
+    // 排序
+    tree.sort((a, b) => a.name.localeCompare(b.name));
+    tree.forEach((platform) => {
+      platform.children?.sort((a, b) => a.name.localeCompare(b.name));
+      platform.children?.forEach((component) => {
+        component.children?.sort((a, b) => a.name.localeCompare(b.name));
+      });
+    });
+
+    return tree;
+  };
+
+  const editApiCategoryTree = buildEditApiCategoryTree();
+
+  const getEditNodeKey = (node: EditTreeNode): string => {
+    const { platform, component, feature } = node.fullPath;
+    return [platform, component, feature].filter(Boolean).join('/');
+  };
+
+  const toggleEditNode = (nodeKey: string) => {
+    setEditExpandedCategoryNodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeKey)) next.delete(nodeKey);
+      else next.add(nodeKey);
+      return next;
+    });
+  };
+
+  const handleSelectEditCategory = (node: EditTreeNode) => {
+    const { platform, component, feature } = node.fullPath;
+    const stored = [platform, component, feature].filter(Boolean).join(' / ');
+
+    const { level3, level4 } = getThirdAndFourthFromFeaturePath(feature);
+    const display = [platform, component, level3, level4]
+      .filter(Boolean)
+      .join(' / ');
+
+    setTestCaseCategory(stored);
+    setEditCategoryDisplay(display);
+    setEditCategoryDropdownOpen(false);
+  };
+
+  const renderEditCategoryNode = (node: EditTreeNode, level: number = 0): React.ReactNode => {
+    const nodeKey = getEditNodeKey(node);
+    const isExpanded = editExpandedCategoryNodes.has(nodeKey);
+    const hasChildren = node.children && node.children.length > 0;
+
+    const Icon =
+      node.type === 'platform'
+        ? Layers
+        : node.type === 'component'
+        ? Box
+        : Grid;
+
+    const isSelected =
+      editCategoryDisplay &&
+      editCategoryDisplay.includes(node.name) &&
+      testCaseCategory.includes(node.fullPath.feature || node.fullPath.component || node.fullPath.platform || '');
+
+    return (
+      <div key={nodeKey}>
+        <div
+          className={`flex items-center gap-1 px-2 py-1.5 rounded-md text-sm cursor-pointer hover:bg-muted ${
+            isSelected ? 'bg-primary text-primary-foreground hover:bg-primary' : ''
+          }`}
+          style={{ paddingLeft: `${level * 12 + 8}px` }}
+          onClick={() => handleSelectEditCategory(node)}
+        >
+          {hasChildren ? (
+            <button
+              className="flex-shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleEditNode(nodeKey);
+              }}
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+          ) : (
+            <span className="w-4" />
+          )}
+
+          <Icon className="h-4 w-4 flex-shrink-0" />
+          <span className="truncate max-w-[140px]">
+            {node.type === 'platform' || node.type === 'component'
+              ? node.name
+              : getLeafName(node.fullPath.feature || node.name)}
+          </span>
+        </div>
+
+        {hasChildren && isExpanded && (
+          <div>
+            {node.children!.map((child) => renderEditCategoryNode(child, level + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // 删除编排
   const handleDelete = async (id: string) => {
     try {
@@ -332,7 +711,8 @@ export default function TestOrchestrationPage() {
           title: t('deleteSuccess'),
           variant: 'success',
         });
-        loadTestCases();
+        // 删除后强制刷新当前页列表
+        loadTestCases({ force: true });
       } else {
         throw new Error(result.error);
       }
@@ -368,7 +748,8 @@ export default function TestOrchestrationPage() {
         if (testCases.length <= ids.length && page > 1) {
           setPage(page - 1);
         } else {
-          loadTestCases();
+          // 批量删除后强制刷新
+          loadTestCases({ force: true });
         }
       } else {
         throw new Error(result.error);
@@ -401,7 +782,8 @@ export default function TestOrchestrationPage() {
           title: t('copySuccess'),
           variant: 'success',
         });
-        loadTestCases();
+        // 复制后强制刷新，让新用例立刻出现在列表
+        loadTestCases({ force: true });
       } else {
         throw new Error(result.error);
       }
@@ -1038,7 +1420,8 @@ export default function TestOrchestrationPage() {
         
         // 重新加载测试用例列表以更新统计信息
         if (viewMode === 'list') {
-          loadTestCases();
+          // 执行完成后刷新统计信息
+          loadTestCases({ force: true });
         }
       } else {
         throw new Error(result.error || '执行失败');
@@ -1065,6 +1448,15 @@ export default function TestOrchestrationPage() {
   // 保存测试用例
   const handleSaveTestCase = async (saveStatus?: string) => {
     try {
+      // 校验：分类必填
+      if (!testCaseCategory || !testCaseCategory.trim()) {
+        toast({
+          title: '请选择分类',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // 检查是否有环形依赖
       if (hasCircularDependency(nodes, edges)) {
         toast({
@@ -1087,6 +1479,7 @@ export default function TestOrchestrationPage() {
         name: testCaseName,
         description: testCaseDescription,
         status: saveStatus || testCaseStatus,
+        priority: testCasePriority,
         category: testCaseCategory,
         tags: testCaseTags,
         flowConfig: {
@@ -1154,9 +1547,20 @@ export default function TestOrchestrationPage() {
     }
   };
 
+  // 清空当前选择的分类
+  const handleClearCategory = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setTestCaseCategory('');
+    setEditCategoryDisplay('');
+    setEditCategoryDropdownOpen(false);
+  };
+
   // 列表模式渲染
   if (viewMode === 'list') {
-    const totalPages = Math.ceil(total / pageSize);
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     if (loading && testCases.length === 0) {
       return (
@@ -1171,6 +1575,10 @@ export default function TestOrchestrationPage() {
         <div className="flex-1 overflow-hidden">
           <TestCaseList
             testCases={testCases}
+            onApiCategoryKeysChange={(keys) => {
+              setApiCategoryKeys(keys);
+              setPage(1);
+            }}
             onCreateNew={handleCreateNew}
             onEdit={handleEdit}
             onDelete={handleDelete}
@@ -1180,12 +1588,11 @@ export default function TestOrchestrationPage() {
         </div>
         
         {/* 底部分页控制栏（固定在底部） */}
-        {total > pageSize && (
-          <div className="flex items-center justify-between pt-4 px-6 pb-4 border-t border-[#e5e7eb] dark:border-[#4b5563] flex-shrink-0 bg-background">
+        <div className="flex items-center justify-between pt-4 px-6 pb-4 border-t border-[#e5e7eb] dark:border-[#4b5563] flex-shrink-0 bg-background">
             <div className="text-sm text-muted-foreground">
               {tExecution('displayingRecords', { 
-                start: (page - 1) * pageSize + 1, 
-                end: Math.min(page * pageSize, total), 
+                start: total === 0 ? 0 : (page - 1) * pageSize + 1, 
+                end: total === 0 ? 0 : Math.min(page * pageSize, total), 
                 total 
               })}
             </div>
@@ -1194,7 +1601,7 @@ export default function TestOrchestrationPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setPage(1)}
-                disabled={page === 1}
+                disabled={page === 1 || total === 0}
               >
                 {tExecution('firstPage')}
               </Button>
@@ -1202,7 +1609,7 @@ export default function TestOrchestrationPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
+                disabled={page === 1 || total === 0}
               >
                 {tExecution('prevPage')}
               </Button>
@@ -1213,7 +1620,7 @@ export default function TestOrchestrationPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setPage(p => p + 1)}
-                disabled={page >= totalPages}
+                disabled={page >= totalPages || total === 0}
               >
                 {tExecution('nextPage')}
               </Button>
@@ -1221,13 +1628,12 @@ export default function TestOrchestrationPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setPage(totalPages)}
-                disabled={page >= totalPages}
+                disabled={page >= totalPages || total === 0}
               >
                 {tExecution('lastPage')}
               </Button>
             </div>
           </div>
-        )}
       </div>
     );
   }
@@ -1289,6 +1695,38 @@ export default function TestOrchestrationPage() {
               <SelectItem value="archived">{t('statusArchived')}</SelectItem>
             </SelectContent>
           </Select>
+
+          <Select value={testCasePriority} onValueChange={(v) => setTestCasePriority(toTestCasePriority(v))}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="P0">
+                <span className="flex items-center gap-2">
+                  <span className="size-2.5 shrink-0 rounded-full bg-rose-400" aria-hidden />
+                  <span>{t('priorityP0')}</span>
+                </span>
+              </SelectItem>
+              <SelectItem value="P1">
+                <span className="flex items-center gap-2">
+                  <span className="size-2.5 shrink-0 rounded-full bg-amber-400" aria-hidden />
+                  <span>{t('priorityP1')}</span>
+                </span>
+              </SelectItem>
+              <SelectItem value="P2">
+                <span className="flex items-center gap-2">
+                  <span className="size-2.5 shrink-0 rounded-full bg-sky-400" aria-hidden />
+                  <span>{t('priorityP2')}</span>
+                </span>
+              </SelectItem>
+              <SelectItem value="P3">
+                <span className="flex items-center gap-2">
+                  <span className="size-2.5 shrink-0 rounded-full bg-gray-400" aria-hidden />
+                  <span>{t('priorityP3')}</span>
+                </span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
           {(currentTestCaseCreatedBy || currentTestCaseUpdatedBy) && (
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               {currentTestCaseCreatedBy && <span>{tCommon('createdBy')}: {currentTestCaseCreatedBy}</span>}
@@ -1338,60 +1776,55 @@ export default function TestOrchestrationPage() {
           </div>
         </div>
 
-        {/* 第二行：描述、分类和标签 */}
-        <div className="flex items-start gap-4">
+      {/* 第二行：描述、分类和标签 */}
+      <div className="flex items-center gap-4">
+          {/* 编排描述 */}
           <Input
             value={testCaseDescription}
             onChange={(e) => setTestCaseDescription(e.target.value)}
-            className="flex-1"
+            className="flex-[2] h-9"
             placeholder={t('descriptionPlaceholder')}
           />
-          
-          {/* 分类输入 - 支持选择已有分类 */}
-          <div className="relative w-[180px]">
-            <Input
-              value={testCaseCategory}
-              onChange={(e) => {
-                setTestCaseCategory(e.target.value);
-                setShowCategoryDropdown(true);
-              }}
-              onFocus={() => setShowCategoryDropdown(true)}
-              onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 200)}
-              className="w-full"
-              placeholder={t('categoryPlaceholder')}
-            />
-            {showCategoryDropdown && existingCategories.length > 0 && (
-              <div className="absolute z-50 w-full mt-1 bg-background border border-[#e5e7eb] dark:border-[#4b5563] rounded-md shadow-lg max-h-[200px] overflow-auto">
-                {existingCategories
-                  .filter(cat => testCaseCategory ? cat.toLowerCase().includes(testCaseCategory.toLowerCase()) : true)
-                  .length > 0 ? (
-                  existingCategories
-                    .filter(cat => testCaseCategory ? cat.toLowerCase().includes(testCaseCategory.toLowerCase()) : true)
-                    .map((category) => (
-                      <button
-                        key={category}
-                        onClick={() => {
-                          setTestCaseCategory(category);
-                          setShowCategoryDropdown(false);
-                        }}
-                        className="w-full px-3 py-2 text-left hover:bg-muted transition-colors text-sm"
-                      >
-                        {category}
-                      </button>
-                    ))
-                ) : (
-                  testCaseCategory && (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">
-                      {t('noMatchingCategory')}
+
+          {/* 分类选择（API 仓库分类树） - 与描述框高度一致 */}
+          <div className="flex-[1.5]">
+            <DropdownMenu
+              open={editCategoryDropdownOpen}
+              onOpenChange={setEditCategoryDropdownOpen}
+            >
+              <DropdownMenuTrigger asChild>
+                <div className="h-9 px-3 inline-flex w-full items-center gap-2 rounded-md border border-input bg-background text-sm text-muted-foreground cursor-pointer hover:bg-accent hover:text-accent-foreground">
+                  <Layers className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">
+                    {editCategoryDisplay || '选择分类'}
+                  </span>
+                </div>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent
+                className="w-[280px] max-h-[400px] overflow-y-auto p-0"
+                align="start"
+              >
+                <div className="p-2">
+                  {/* 分类树（保持原有结构与行为不变） */}
+                  {editApiCategoryTree.length > 0 ? (
+                    <div className="space-y-1">
+                      {editApiCategoryTree.map((node) =>
+                        renderEditCategoryNode(node, 0)
+                      )}
                     </div>
-                  )
-                )}
-              </div>
-            )}
+                  ) : (
+                    <div className="text-center py-4 text-sm text-muted-foreground">
+                      暂无API分类
+                    </div>
+                  )}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          
-          {/* 标签输入 - 支持选择已有标签 */}
-          <div className="flex items-center gap-2 flex-1">
+         
+          {/* 标签输入 - 与其他控件对齐 */}
+          <div className="flex items-center gap-2 flex-[2]">
             <div className="flex items-center gap-2 flex-wrap flex-1">
               {testCaseTags.map((tag) => (
                 <Badge key={tag} variant="secondary" className="gap-1">

@@ -4,6 +4,17 @@ import { getCurrentUser } from '@/lib/auth';
 import { safeJsonParse, safeJsonStringify } from '@/lib/json-utils';
 import { logger, OperationType } from '@/lib/logger';
 
+const ALLOWED_PRIORITIES = new Set(['P0', 'P1', 'P2', 'P3'] as const);
+function normalizePriority(input: any): 'P0' | 'P1' | 'P2' | 'P3' {
+  if (input == null || input === '') {
+    return 'P2';
+  }
+  if (typeof input !== 'string' || !ALLOWED_PRIORITIES.has(input as any)) {
+    throw new Error(`Invalid priority: ${String(input)}`);
+  }
+  return input as any;
+}
+
 // 清理节点中的执行结果（后端保护层）
 function cleanExecutionFromFlowConfig(flowConfig: any): any {
   if (!flowConfig || !flowConfig.nodes) {
@@ -43,13 +54,45 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
+    const apiCategoriesRaw = searchParams.get('apiCategories'); // JSON数组：["platform / component / feature", ...]，支持 "__NULL__"
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
 
     // 记录请求
-    logger.apiRequest('GET', '/api/test-cases', OperationType.READ, { status, page, pageSize });
+    logger.apiRequest('GET', '/api/test-cases', OperationType.READ, { status, apiCategoriesRaw, page, pageSize });
 
-    const where = status ? { status } : {};
+    const where: any = {};
+    if (status) where.status = status;
+
+    // API仓库分类筛选（平台/组件/功能）- 只要用例步骤中存在任一匹配API即可命中
+    const parsedApiCategoryKeys = safeJsonParse(apiCategoriesRaw) as unknown;
+    const apiCategoryKeys =
+      Array.isArray(parsedApiCategoryKeys)
+        ? parsedApiCategoryKeys.filter((v) => typeof v === 'string') as string[]
+        : [];
+
+    if (apiCategoryKeys.length > 0) {
+      const stepOr = apiCategoryKeys
+        .map((key) => {
+          const parts = String(key).split(' / ').map((p) => p.trim());
+          const [platform, component, feature] = parts;
+
+          const apiWhere: any = {};
+          if (platform) apiWhere.platform = platform === '__NULL__' ? null : platform;
+          if (component) apiWhere.component = component === '__NULL__' ? null : component;
+          if (feature) apiWhere.feature = feature === '__NULL__' ? null : feature;
+
+          // 空条件无意义
+          if (Object.keys(apiWhere).length === 0) return null;
+
+          return { api: { is: apiWhere } };
+        })
+        .filter(Boolean);
+
+      if (stepOr.length > 0) {
+        where.steps = { some: { OR: stepOr } };
+      }
+    }
 
     // 获取总数
     const total = await prisma.testCase.count({ where });
@@ -143,13 +186,14 @@ export async function POST(request: NextRequest) {
     const userId = currentUser?.user?.id ?? null;
 
     const body = await request.json();
-    const { name, description, status, category, tags, flowConfig, steps } = body;
+    const { name, description, status, category, tags, priority, flowConfig, steps } = body;
 
     // 记录请求
     logger.apiRequest('POST', '/api/test-cases', OperationType.CREATE, { name, status, stepsCount: steps?.length });
 
     // 清理 flowConfig 中的执行结果（后端保护层）
     const cleanedFlowConfig = cleanExecutionFromFlowConfig(flowConfig);
+    const normalizedPriority = normalizePriority(priority);
 
     logger.db(OperationType.CREATE, 'TestCase', 'create', { name, stepsCount: steps?.length });
     
@@ -159,6 +203,7 @@ export async function POST(request: NextRequest) {
         name,
         description,
         status: status || 'draft',
+        priority: normalizedPriority,
         category: category || null,
         tags: safeJsonStringify(tags),
         flowConfig: safeJsonStringify(cleanedFlowConfig) || '{}',

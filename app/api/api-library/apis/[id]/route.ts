@@ -97,6 +97,7 @@ export async function PUT(
       platform,
       component,
       feature,
+      subFeature,
       tags,
       isStarred,
       isArchived,
@@ -198,6 +199,7 @@ export async function PUT(
     if (platform !== undefined) updateData.platform = platform || null;
     if (component !== undefined) updateData.component = component || null;
     if (feature !== undefined) updateData.feature = feature || null;
+    if (subFeature !== undefined) updateData.subFeature = subFeature || null;
     if (isStarred !== undefined) updateData.isStarred = isStarred;
     if (isArchived !== undefined) updateData.isArchived = isArchived;
     
@@ -243,7 +245,7 @@ export async function PUT(
     // 安全检查：确保 updateData 中只包含 Prisma schema 定义的字段
     const allowedFields = new Set([
       'name', 'description', 'method', 'url', 'path', 'categoryId', 'isStarred', 'isArchived',
-      'platform', 'component', 'feature', // 🆕 四层分类字段
+      'platform', 'component', 'feature', 'subFeature', // 四层分类字段
       'requestHeaders', 'requestQuery', 'requestBody', 'requestMimeType',
       'responseStatus', 'responseHeaders', 'responseBody', 'responseMimeType',
       'rawHarEntry', 'updatedBy'

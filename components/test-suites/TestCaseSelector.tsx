@@ -23,6 +23,7 @@ interface TestCase {
   name: string;
   description?: string;
   status: string;
+  priority?: string;
   category?: string;
   platform?: string;
   component?: string;
@@ -182,7 +183,7 @@ export function TestCaseSelector({
   const allCurrentPageSelected = testCases.length > 0 && testCases.every(tc => selectedIds.has(tc.id));
 
   return (
-    <div className="flex h-[600px] border border-[#e5e7eb] dark:border-[#4b5563] rounded-lg overflow-hidden">
+    <div className="flex h-[65vh] min-h-[420px] max-h-[800px] border border-[#e5e7eb] dark:border-[#4b5563] rounded-lg overflow-hidden">
       {/* 左侧分类树 - 使用新的 TestCaseTree 组件 */}
       <div className="w-64 flex-shrink-0">
         <TestCaseTree
@@ -282,6 +283,19 @@ export function TestCaseSelector({
                           <h3 className="font-medium truncate">{testCase.name}</h3>
                           <Badge variant="outline" className="text-xs">
                             {testCase.status === 'active' ? t('statusPublished') : t('statusDraft')}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs flex items-center gap-1.5">
+                            <span
+                              className={cn(
+                                'size-2 shrink-0 rounded-full',
+                                (testCase.priority || 'P2') === 'P0' && 'bg-rose-400',
+                                (testCase.priority || 'P2') === 'P1' && 'bg-amber-400',
+                                (testCase.priority || 'P2') === 'P2' && 'bg-sky-400',
+                                (testCase.priority || 'P2') === 'P3' && 'bg-gray-400'
+                              )}
+                              aria-hidden
+                            />
+                            {testCase.priority || 'P2'}
                           </Badge>
                         </div>
                         {testCase.description && (

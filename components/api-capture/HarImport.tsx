@@ -58,6 +58,7 @@ export function HarImport({ isRecording, onImport }: HarImportProps) {
     platform?: string;
     component?: string;
     feature?: string;
+    subFeature?: string;
   }>({});
   
   // 冲突检测
@@ -330,6 +331,7 @@ export function HarImport({ isRecording, onImport }: HarImportProps) {
         platform: classification.platform,
         component: classification.component,
         feature: classification.feature,
+        subFeature: classification.subFeature?.trim() || undefined,
         importSource: 'har',
       }));
       
@@ -820,6 +822,7 @@ export function HarImport({ isRecording, onImport }: HarImportProps) {
                 value={classification}
                 onChange={setClassification}
                 allowCreate={true}
+                enableSubFeature={true}
               />
             </div>
           )}
