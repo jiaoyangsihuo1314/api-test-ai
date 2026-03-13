@@ -203,7 +203,7 @@ export default function VariableSelector({
                               handleSelect(
                                 buildVariablePath(
                                   node.id,
-                                  'request.queryParams',
+                                  'request.params',
                                   key
                                 )
                               )

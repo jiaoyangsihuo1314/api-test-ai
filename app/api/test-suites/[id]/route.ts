@@ -173,18 +173,14 @@ export async function PUT(
         // 创建新的关联
         if (testCases.length > 0) {
           logger.db(OperationType.CREATE, 'TestSuiteCase', 'createMany', { count: testCases.length });
-          await Promise.all(
-            testCases.map((tc: any, index: number) =>
-              tx.testSuiteCase.create({
-                data: {
-                  suiteId: id,
-                  testCaseId: tc.testCaseId || tc.id,
-                  order: tc.order !== undefined ? tc.order : index + 1,
-                  enabled: tc.enabled !== undefined ? tc.enabled : true,
-                },
-              })
-            )
-          );
+          await tx.testSuiteCase.createMany({
+            data: testCases.map((tc: any, index: number) => ({
+              suiteId: id,
+              testCaseId: tc.testCaseId || tc.id,
+              order: tc.order !== undefined ? tc.order : index + 1,
+              enabled: tc.enabled !== undefined ? tc.enabled : true,
+            })),
+          });
         }
       }
 

@@ -41,9 +41,8 @@ export function TabManager({ children }: TabManagerProps) {
     })
   }, [tabs])
 
-  // 仪表盘页面固定高度、不滚动；其他页面可滚动
-  const isDashboard = pathname === '/dashboard' || pathname === '/'
-  const contentOverflow = isDashboard ? 'overflow-hidden' : 'overflow-auto scrollbar-hide'
+  // 所有页面内容区域都允许纵向滚动
+  const contentOverflow = 'overflow-auto scrollbar-hide'
 
   return (
     <div className="flex flex-col h-full">
@@ -55,8 +54,7 @@ export function TabManager({ children }: TabManagerProps) {
           </div>
         ) : (
           tabs.map(tab => {
-            const isTabDashboard = tab.path === '/dashboard'
-            const tabOverflow = isTabDashboard ? 'overflow-hidden' : 'overflow-auto scrollbar-hide'
+            const tabOverflow = 'overflow-auto scrollbar-hide'
             return (
               <div
                 key={tab.id}

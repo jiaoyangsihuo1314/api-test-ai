@@ -64,6 +64,7 @@ interface TestCase {
   platform?: string | null;
   component?: string | null;
   feature?: string | null;
+  subFeature?: string | null;
   tags?: string[];
   createdAt: string;
   updatedAt: string;
@@ -283,7 +284,6 @@ export default function TestCaseList({
               ) || null;
 
             if (!existingNode) {
-              const pathSegments = segments.slice(0, index + 1);
               existingNode = {
                 type,
                 name: segmentName,
@@ -292,7 +292,9 @@ export default function TestCaseList({
                 fullPath: {
                   platform,
                   component,
-                  feature: pathSegments.join(' > '),
+                  // 与后端 /api/test-cases 的解析规则对齐：
+                  // 第3段永远是根 feature，第4段用 subFeature 单独表达
+                  feature: segments[0],
                   subFeature: type === 'subFeature' ? segmentName : undefined,
                 },
               };
@@ -398,8 +400,8 @@ export default function TestCaseList({
 
   // 生成节点唯一键
   const getApiNodeKey = (node: any): string => {
-    const { platform, component, feature } = node.fullPath;
-    return [platform, component, feature].filter(Boolean).join('/');
+    const { platform, component, feature, subFeature } = node.fullPath;
+    return [platform, component, feature, subFeature].filter(Boolean).join('/');
   };
 
   // 切换节点展开/折叠
@@ -417,8 +419,8 @@ export default function TestCaseList({
 
   // 生成分类路径键
   const getCategoryKey = (node: any): string => {
-    const { platform, component, feature } = node.fullPath;
-    return [platform, component, feature].filter(Boolean).join(' / ');
+    const { platform, component, feature, subFeature } = node.fullPath;
+    return [platform, component, feature, subFeature].filter(Boolean).join(' / ');
   };
 
   // 获取节点的所有子节点（递归）
@@ -574,7 +576,8 @@ export default function TestCaseList({
     const p0 = parts[0] === DEFAULT_PLATFORM ? '__NULL__' : parts[0];
     const p1 = parts[1] === DEFAULT_COMPONENT ? '__NULL__' : parts[1];
     const p2 = parts[2] === DEFAULT_FEATURE ? '__NULL__' : parts[2];
-    return [p0, p1, p2].filter(Boolean).join(' / ');
+    const p3 = parts[3] || undefined;
+    return [p0, p1, p2, p3].filter(Boolean).join(' / ');
   };
 
   // 选中分类变化时通知父组件做服务端查询
@@ -665,7 +668,7 @@ export default function TestCaseList({
           <span className="truncate max-w-[150px]">
             {node.type === 'platform' || node.type === 'component'
               ? node.name
-              : getLeafName(node.fullPath?.feature || node.name)}
+              : getLeafName(node.name)}
           </span>
           <Badge
             variant="outline"
@@ -1130,7 +1133,7 @@ export default function TestCaseList({
                             <div className="flex items-center gap-3 text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <FileText className="h-3 w-3" />
-                                {testCase.steps?.length || 0} {t('executions')}
+                                {testCase.steps?.length || 0} {t('steps')}
                               </span>
                               <span className="flex items-center gap-1">
                                 <PlayCircle className="h-3 w-3" />

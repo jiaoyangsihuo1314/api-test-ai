@@ -59,6 +59,14 @@ export async function PUT(request: NextRequest) {
           authTokenEnabled: data.authTokenEnabled !== undefined ? data.authTokenEnabled : settings.authTokenEnabled,
           authTokenKey: data.authTokenKey !== undefined ? data.authTokenKey : settings.authTokenKey,
           authTokenValue: data.authTokenValue !== undefined ? data.authTokenValue : settings.authTokenValue,
+
+          // Token 自动获取配置
+          tokenLoginApiUrl: data.tokenLoginApiUrl !== undefined ? data.tokenLoginApiUrl : settings.tokenLoginApiUrl,
+          tokenLoginMethod: data.tokenLoginMethod !== undefined ? data.tokenLoginMethod : settings.tokenLoginMethod,
+          tokenLoginRequestHeaders: data.tokenLoginRequestHeaders !== undefined ? data.tokenLoginRequestHeaders : settings.tokenLoginRequestHeaders,
+          tokenLoginRequestBody: data.tokenLoginRequestBody !== undefined ? data.tokenLoginRequestBody : settings.tokenLoginRequestBody,
+          tokenResponsePath: data.tokenResponsePath !== undefined ? data.tokenResponsePath : settings.tokenResponsePath,
+
           sessionEnabled: data.sessionEnabled !== undefined ? data.sessionEnabled : settings.sessionEnabled,
           loginApiUrl: data.loginApiUrl !== undefined ? data.loginApiUrl : settings.loginApiUrl,
           loginMethod: data.loginMethod !== undefined ? data.loginMethod : settings.loginMethod,

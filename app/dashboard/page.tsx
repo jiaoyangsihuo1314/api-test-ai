@@ -549,7 +549,7 @@ export default function Home() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+              <div className="space-y-3 max-h-[400px] overflow-y-scroll pr-2">
                 {stats.recentRuns.length > 0 ? (
                   stats.recentRuns.map((run, index) => {
                     const statusConfig = getStatusConfig(run.status);

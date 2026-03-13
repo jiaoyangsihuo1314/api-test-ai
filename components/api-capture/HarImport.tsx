@@ -66,6 +66,16 @@ export function HarImport({ isRecording, onImport }: HarImportProps) {
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [preparedApis, setPreparedApis] = useState<any[]>([]);
 
+  // 统一判重Key：GET 忽略 query，只按 pathname 判重；其他方法保持 method + path
+  const getApiIdentityKey = (api: any) => {
+    const method = String(api?.method || '').toUpperCase();
+    let path = String(api?.path || '');
+    if (method === 'GET') {
+      path = path.split('?')[0];
+    }
+    return `${method}|${path}`;
+  };
+
   const parseHarContent = (harText: string): CapturedApi[] => {
     try {
       const harData = JSON.parse(harText);
@@ -81,7 +91,10 @@ export function HarImport({ isRecording, onImport }: HarImportProps) {
           const url = new URL(entry.request.url);
           
           // 自动参数化路径（识别并替换硬编码的 ID）
-          const originalPath = url.pathname + url.search;
+          // GET 请求：判重只按 pathname，忽略 query
+          const originalPath = entry.request.method === 'GET'
+            ? url.pathname
+            : url.pathname + url.search;
           const paramResult = parameterizePath(originalPath);
           const finalPath = paramResult.parameterizedPath;
           
@@ -280,7 +293,7 @@ export function HarImport({ isRecording, onImport }: HarImportProps) {
     const duplicates: any[] = [];
     
     apis.forEach(api => {
-      const key = `${api.method}-${api.path}`;
+      const key = getApiIdentityKey(api);
       if (seen.has(key)) {
         duplicates.push(api);
         console.log(`⚠️ [去重] 发现重复API: ${api.method} ${api.path} - ${api.name}`);
@@ -448,9 +461,9 @@ export function HarImport({ isRecording, onImport }: HarImportProps) {
           }
         } else {
           // 普通创建模式：基于 method + path 去重
-          const key = `${api.method}|${api.path}`;
+          const key = getApiIdentityKey(api);
           const existingIndex = acc.findIndex(
-            (a: any) => !a._overwrite && `${a.method}|${a.path}` === key
+            (a: any) => !a._overwrite && getApiIdentityKey(a) === key
           );
           if (existingIndex === -1) {
             acc.push(api);

@@ -50,12 +50,16 @@ class VariableManager:
             提取的值
         """
         try:
-            # 🔧 修复：智能转换数组访问语法
-            # 将 "0.field" 或 "path.0.field" 格式转换为 "path[0].field"
+            # 🔧 智能转换数组访问语法
+            # 将纯数字路径段从点号分隔转为 JSONPath 的方括号索引
+            # 例如: "returnObject.0.0" -> "returnObject[0][0]"
+            #       "data.0.name"      -> "data[0].name"
+            #       "0.userId"         -> "[0].userId"
             import re
-            # 匹配模式：数字后面跟着点（作为路径分隔符）
-            # 例如: "0.userId" -> "[0].userId", "data.0.name" -> "data[0].name"
-            json_path = re.sub(r'(?:^|\.)(\d+)\.', r'[\1].', json_path)
+            # Step 1: ".N" → "[N]"（N 是完整路径段，后面跟 . 或末尾或 [）
+            json_path = re.sub(r'\.(\d+)(?=\.|$|\[)', r'[\1]', json_path)
+            # Step 2: 路径以数字开头时 "N.xxx" → "[N].xxx"
+            json_path = re.sub(r'^(\d+)(?=\.|$|\[)', r'[\1]', json_path)
             print(f"[变量提取] 原始路径转换后: {json_path}")
             
             # 如果不是以 $ 开头，自动添加
@@ -200,11 +204,17 @@ class VariableManager:
                 print(f"[变量解析] 字段路径: {field_path}")
                 
                 # 构建请求上下文（与 response 逻辑类似）
+                # 兼容历史/前端路径：
+                # - 前端曾使用 request.queryParams.xxx
+                # - 执行期请求数据使用 request.params（httpx 习惯）
+                # 因此同时提供 params 和 queryParams 两个别名，确保不破坏已有用例。
+                request_params = request_data.get('params', {}) or {}
                 request_context = {
                     'method': request_data.get('method'),
                     'url': request_data.get('url'),
                     'headers': request_data.get('headers', {}),
-                    'params': request_data.get('params', {})
+                    'params': request_params,
+                    'queryParams': request_params,
                 }
                 
                 # 如果有请求体，将其字段直接放到根层级（与 response.body 逻辑一致）

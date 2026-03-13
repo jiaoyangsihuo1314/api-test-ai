@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
@@ -99,10 +98,20 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
   return (
     <div className="space-y-4 py-4 flex flex-col h-full bg-card border-r border-[#e5e7eb] dark:border-[#4b5563]">
       <div className="px-3 py-2 flex-1">
-        <Link 
-          href="/api-capture" 
+        <a
+          href="/dashboard"
+          onClick={(e) => {
+            e.preventDefault()
+            addTab({
+              path: "/dashboard",
+              title: t("dashboard"),
+              labelKey: "dashboard",
+              closable: true,
+              pinned: false,
+            })
+          }}
           className={cn(
-            "flex items-center group transition-all mb-14",
+            "flex items-center group transition-all mb-14 cursor-pointer",
             isCollapsed ? "justify-center px-0" : "pl-3"
           )}
           title={isCollapsed ? nav('platformTitle') : undefined}
@@ -126,7 +135,7 @@ export function Sidebar({ isCollapsed = false }: SidebarProps) {
               {nav('platformTitle')}
             </h1>
           )}
-        </Link>
+        </a>
         <div className="space-y-1">
           {routes.map((route) => {
             const isActive = pathname === route.href;

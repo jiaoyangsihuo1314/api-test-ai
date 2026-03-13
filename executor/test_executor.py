@@ -17,6 +17,28 @@ from logger_config import get_logger
 # 获取日志器
 logger = get_logger('executor')
 
+def _sanitize_outgoing_headers(headers: Any) -> None:
+    """
+    httpx 会自动计算 Content-Length；手动设置且与最终请求体字节数不一致时，
+    会触发协议错误（常见表现：LocalProtocolError）。
+    为保证执行稳定性，发请求前统一剥离 Content-Length（大小写不敏感）。
+    """
+    if not headers:
+        return
+    try:
+        keys = list(headers.keys())
+    except Exception:
+        return
+    for k in keys:
+        if isinstance(k, str) and k.lower() == 'content-length':
+            try:
+                headers.pop(k, None)
+            except Exception:
+                try:
+                    del headers[k]
+                except Exception:
+                    pass
+
 
 class TestExecutor:
     """测试执行器 - 负责执行测试用例"""
@@ -804,6 +826,9 @@ class TestExecutor:
             print(f"[请求调试] 🚀 发送请求到: {display_url}")
             print(f"[请求调试] 使用的认证: Cookie头={bool(headers.get('Cookie'))}, Authorization头={bool(headers.get('Authorization'))}")
             
+            # 避免手动 Content-Length 导致协议错误（LocalProtocolError）
+            _sanitize_outgoing_headers(headers)
+
             # 记录请求开始时间
             request_start_time = datetime.now()
             response = await self.client.request(**request_data)
@@ -1802,6 +1827,9 @@ class TestExecutor:
                     request_kwargs['json'] = body_data
                     print(f"[并发API] 使用 JSON 格式发送请求体")
             
+            # 避免手动 Content-Length 导致协议错误（LocalProtocolError）
+            _sanitize_outgoing_headers(headers)
+
             # 发送请求
             request_start_time = datetime.now()
             response = await self.client.request(**request_kwargs)

@@ -250,6 +250,14 @@ model PlatformSettings {
   authTokenEnabled Boolean @default(false) // 是否启用认证Token
   authTokenKey     String? // Token的Header键名（如：Authorization）
   authTokenValue   String? // Token的值（如：Bearer xxx）
+
+  // Token 自动获取配置
+  tokenLoginApiUrl         String?   // Token登录接口URL
+  tokenLoginMethod         String?   // 请求方法（GET, POST, PUT）
+  tokenLoginRequestHeaders Json?     // 登录请求头（JSON）
+  tokenLoginRequestBody    Json?     // 登录请求体（JSON）
+  tokenResponsePath        String?   // Token在响应体中的提取路径，如 data.token
+  tokenUpdatedAt           DateTime? // Token最后自动获取时间
   
   // Session模式
   sessionEnabled       Boolean @default(false) // 是否启用Session模式

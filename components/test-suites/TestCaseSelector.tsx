@@ -28,6 +28,7 @@ interface TestCase {
   platform?: string;
   component?: string;
   feature?: string;
+   subFeature?: string;
 }
 
 interface TestCaseSelectorProps {
@@ -69,11 +70,12 @@ export function TestCaseSelector({
   const loadTestCases = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/test-cases');
+      // 方案A：一次性拉取全量已发布用例（后端默认 pageSize=20，会导致数据不全）
+      const response = await fetch('/api/test-cases?status=active&page=1&pageSize=100000');
       const result = await response.json();
       
       if (result.success) {
-        // 只显示发布状态的测试用例
+        // 接口已按 status=active 过滤，这里仅做兜底
         const publishedCases = result.data.filter((tc: TestCase) => tc.status === 'active');
         setAllTestCases(publishedCases);
       }
@@ -96,7 +98,10 @@ export function TestCaseSelector({
     if (selectedCategory) {
       // 处理"未分类"情况
       if (selectedCategory === 'uncategorized') {
-        filtered = filtered.filter(tc => !(tc as any).platform && !(tc as any).component && !(tc as any).feature);
+        filtered = filtered.filter(tc => {
+          const tcAny = tc as any;
+          return !tcAny.platform && !tcAny.component && !tcAny.feature && !tcAny.subFeature;
+        });
       } else {
         // 解析分类路径
         const parts = selectedCategory.split('/');
@@ -111,6 +116,14 @@ export function TestCaseSelector({
           } else if (parts.length === 3) {
             // 选择了平台、组件和功能
             return tcAny.platform === parts[0] && tcAny.component === parts[1] && tcAny.feature === parts[2];
+          } else if (parts.length === 4) {
+            // 选择了平台、组件、功能和子功能
+            return (
+              tcAny.platform === parts[0] &&
+              tcAny.component === parts[1] &&
+              tcAny.feature === parts[2] &&
+              tcAny.subFeature === parts[3]
+            );
           }
           return false;
         });
@@ -129,7 +142,8 @@ export function TestCaseSelector({
             (tc.category && tc.category.toLowerCase().includes(term)) ||
             (tcAny.platform && tcAny.platform.toLowerCase().includes(term)) ||
             (tcAny.component && tcAny.component.toLowerCase().includes(term)) ||
-            (tcAny.feature && tcAny.feature.toLowerCase().includes(term))
+            (tcAny.feature && tcAny.feature.toLowerCase().includes(term)) ||
+            (tcAny.subFeature && tcAny.subFeature.toLowerCase().includes(term))
           );
         }
       );

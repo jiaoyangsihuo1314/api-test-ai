@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
-    const apiCategoriesRaw = searchParams.get('apiCategories'); // JSON数组：["platform / component / feature", ...]，支持 "__NULL__"
+    const apiCategoriesRaw = searchParams.get('apiCategories'); // JSON数组：["platform / component / feature / subFeature", ...]，支持 "__NULL__"
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
 
@@ -75,12 +75,13 @@ export async function GET(request: NextRequest) {
       const stepOr = apiCategoryKeys
         .map((key) => {
           const parts = String(key).split(' / ').map((p) => p.trim());
-          const [platform, component, feature] = parts;
+          const [platform, component, feature, subFeature] = parts;
 
           const apiWhere: any = {};
           if (platform) apiWhere.platform = platform === '__NULL__' ? null : platform;
           if (component) apiWhere.component = component === '__NULL__' ? null : component;
           if (feature) apiWhere.feature = feature === '__NULL__' ? null : feature;
+          if (subFeature) apiWhere.subFeature = subFeature === '__NULL__' ? null : subFeature;
 
           // 空条件无意义
           if (Object.keys(apiWhere).length === 0) return null;
@@ -109,6 +110,7 @@ export async function GET(request: NextRequest) {
                 platform: true,
                 component: true,
                 feature: true,
+                subFeature: true,
               },
             },
           },
@@ -129,12 +131,13 @@ export async function GET(request: NextRequest) {
     // 解析 JSON 字符串字段（数据库中是 TEXT 类型）
     const parsedTestCases = testCases.map((testCase: any) => {
       // 从步骤中的API提取分类信息（取第一个有API的步骤）
-      let platform, component, feature;
+      let platform, component, feature, subFeature;
       const firstApiStep = testCase.steps.find((step: any) => step.api);
       if (firstApiStep && firstApiStep.api) {
         platform = firstApiStep.api.platform;
         component = firstApiStep.api.component;
         feature = firstApiStep.api.feature;
+        subFeature = firstApiStep.api.subFeature;
       }
       
       return {
@@ -142,6 +145,7 @@ export async function GET(request: NextRequest) {
         platform,
         component,
         feature,
+        subFeature,
         flowConfig: safeJsonParse(testCase.flowConfig),
         tags: safeJsonParse(testCase.tags),
         steps: testCase.steps.map((step: any) => ({

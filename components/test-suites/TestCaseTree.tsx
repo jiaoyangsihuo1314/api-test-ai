@@ -28,6 +28,7 @@ interface TestCase {
   platform?: string;
   component?: string;
   feature?: string;
+  subFeature?: string;
 }
 
 interface TestCaseTreeProps {
@@ -37,7 +38,7 @@ interface TestCaseTreeProps {
 }
 
 interface TreeNode {
-  type: 'platform' | 'component' | 'feature';
+  type: 'platform' | 'component' | 'feature' | 'subFeature';
   name: string;
   count: number;
   children?: TreeNode[];
@@ -45,6 +46,7 @@ interface TreeNode {
     platform?: string;
     component?: string;
     feature?: string;
+    subFeature?: string;
   };
 }
 
@@ -69,11 +71,12 @@ export function TestCaseTree({
     // 统计每个分类路径的用例数量
     testCases.forEach(tc => {
       // 跳过没有分类信息的用例（未分类）
-      if (!tc.platform && !tc.component && !tc.feature) return;
+      if (!tc.platform && !tc.component && !tc.feature && !tc.subFeature) return;
       
       const platform = tc.platform || DEFAULT_PLATFORM;
       const component = tc.component || DEFAULT_COMPONENT;
       const feature = tc.feature || DEFAULT_FEATURE;
+      const subFeature = tc.subFeature || null;
       
       // 获取或创建平台节点
       if (!platformMap.has(platform)) {
@@ -115,11 +118,32 @@ export function TestCaseTree({
           type: 'feature',
           name: feature,
           count: 0,
+          children: [],
           fullPath: { platform, component, feature },
         };
         componentNode.children!.push(featureNode);
       }
       featureNode.count++;
+
+      // 处理子功能层（第 4 层，可选）
+      if (subFeature) {
+        let subFeatureNode = featureNode.children?.find(
+          (n) => n.name === subFeature && n.type === 'subFeature'
+        );
+        if (!subFeatureNode) {
+          subFeatureNode = {
+            type: 'subFeature',
+            name: subFeature,
+            count: 0,
+            fullPath: { platform, component, feature, subFeature },
+          };
+          if (!featureNode.children) {
+            featureNode.children = [];
+          }
+          featureNode.children.push(subFeatureNode);
+        }
+        subFeatureNode.count++;
+      }
     });
     
     // 排序
@@ -128,6 +152,9 @@ export function TestCaseTree({
       platform.children?.sort((a, b) => a.name.localeCompare(b.name));
       platform.children?.forEach((component) => {
         component.children?.sort((a, b) => a.name.localeCompare(b.name));
+        component.children?.forEach((featureNode) => {
+          featureNode.children?.sort((a, b) => a.name.localeCompare(b.name));
+        });
       });
     });
     
@@ -145,8 +172,8 @@ export function TestCaseTree({
 
   // 生成节点唯一键
   const getNodeKey = (node: TreeNode): string => {
-    const { platform, component, feature } = node.fullPath;
-    return [platform, component, feature].filter(Boolean).join('/');
+    const { platform, component, feature, subFeature } = node.fullPath;
+    return [platform, component, feature, subFeature].filter(Boolean).join('/');
   };
 
   // 切换节点展开/折叠

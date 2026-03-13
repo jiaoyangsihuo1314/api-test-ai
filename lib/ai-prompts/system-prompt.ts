@@ -159,7 +159,8 @@ const UNIFIED_SYSTEM_PROMPT = `
 - 请求体：\`request.body.username\`（重用请求数据）
 - 请求头：\`request.headers.authorization\`
 - 路径参数：\`request.pathParams.id\`
-- 查询参数：\`request.queryParams.page\`
+- 查询参数：\`request.params.page\`（推荐）或 \`request.queryParams.page\`（兼容）
+- ⚠️ 数组取值用方括号：\`response.data.items[0].id\`、\`response.returnObject[0][0]\`
 
 **重要规则**：
 - variableRefs 会覆盖 params 中的同名字段
@@ -218,28 +219,35 @@ const UNIFIED_SYSTEM_PROMPT = `
 **字段路径规则**：
 - 简化写法（推荐）：\`"code"\`、\`"data.id"\`（默认从 responseBody 开始）
 - 完整写法：\`"status"\`（HTTP 状态码）、\`"responseBody.code"\`、\`"responseHeaders.content-type"\`
+- ⚠️ **数组访问必须使用方括号语法**：\`"data[0].name"\`、\`"returnObject[0][0]"\`
+  - ❌ 错误：\`"data.0.name"\`、\`"returnObject.0.0"\`（不要用点号访问数组索引）
+  - ✅ 正确：\`"data[0].name"\`、\`"returnObject[0][0]"\`（使用 \`[index]\` 语法）
 
-**常用断言模板**：
+**常用断言模板（注意：HTTP 只表示通信成功，业务成功/失败由响应体中的业务码决定，例如 \`returnCode\`）**：
 
-正常用例：
+正常用例（业务成功）：
 \`\`\`json
 [
   { "field": "status", "operator": "equals", "expected": 200, "expectedType": "number" },
-  { "field": "code", "operator": "equals", "expected": 200, "expectedType": "number" },
+  { "field": "returnCode", "operator": "equals", "expected": 200, "expectedType": "number" },
   { "field": "data.id", "operator": "exists" },
-  { "field": "message", "operator": "equals", "expected": "success", "expectedType": "string" }
+  { "field": "returnMsg", "operator": "equals", "expected": "success", "expectedType": "string" }
 ]
 \`\`\`
 
-异常用例：
+异常用例（业务失败，例如“用户名为空”“参数不合法”等）：
 \`\`\`json
 [
-  { "field": "status", "operator": "equals", "expected": 400, "expectedType": "number" },
-  { "field": "error", "operator": "exists" },
-  { "field": "message", "operator": "contains", "expected": "required", "expectedType": "string" },
-  { "field": "data", "operator": "notExists" }
+  { "field": "status", "operator": "equals", "expected": 200, "expectedType": "number" },
+  { "field": "returnCode", "operator": "notEquals", "expected": 200, "expectedType": "number" },
+  { "field": "returnMsg", "operator": "contains", "expected": "用户名", "expectedType": "string" }
 ]
 \`\`\`
+
+**重要约束：**
+- 对于“参数为空/格式错误/业务校验失败”等业务错误场景，**不要**使用 \`status != 200\` 或 \`status == 400/500\` 来表达失败；
+- 只有当用户在需求中**明确说明**该接口会通过 HTTP 状态码返回错误（如“接口返回 400/401/500”）时，才可以使用 \`status != 200\` 或特定 4xx/5xx 状态码进行断言；
+- 默认情况下：HTTP \`status == 200\` 仅表示通信成功，业务成功/失败一律通过响应体中的业务码（如 \`returnCode\`）与提示信息（如 \`returnMsg\`）进行断言。
 
 ### 等待配置（wait）
 
