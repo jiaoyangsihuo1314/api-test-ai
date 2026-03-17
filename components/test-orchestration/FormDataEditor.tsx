@@ -226,10 +226,10 @@ export default function FormDataEditor({
                 {showVarSelector === `${index}` && (
                   <div className="absolute z-50 mt-1 w-full">
                     <VariableSelector
-                      onSelect={(variable) => handleVariableSelect(index, variable)}
                       nodes={nodes}
                       currentNodeId={currentNodeId}
-                      onClose={() => setShowVarSelector(null)}
+                      value={entry.paramValue.variable || ''}
+                      onChange={(variablePath) => handleVariableSelect(index, variablePath)}
                     />
                   </div>
                 )}

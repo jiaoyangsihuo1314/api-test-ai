@@ -218,21 +218,47 @@ class VariableManager:
                 }
                 
                 # 如果有请求体，将其字段直接放到根层级（与 response.body 逻辑一致）
-                body = request_data.get('json')  # 请求体在 'json' 字段中
+                # 🚩 兼容多种请求体来源：
+                # - JSON:   request['json']
+                # - 表单:   request['data']  (form-data / x-www-form-urlencoded)
+                # - 原文:   request['content'] (raw)
+                # - 文件:   request['files']  (附加在 __files 字段中，避免与业务字段冲突)
+                body = request_data.get('json')
+                if body is None:
+                    body = request_data.get('data')
+                if body is None:
+                    body = request_data.get('content')
+                files = request_data.get('files')
+                
                 print(f"[变量解析] request body 类型: {type(body)}")
                 print(f"[变量解析] request body 内容: {body}")
+                print(f"[变量解析] request files 内容: {files}")
                 
                 if isinstance(body, dict):
-                    request_context['body'] = body
+                    # 为避免意外修改原始请求体，这里做一份浅拷贝
+                    merged_body = dict(body)
+                    # 如果存在文件字段，将其挂载到保留键 __files 下
+                    if files is not None and '__files' not in merged_body:
+                        merged_body['__files'] = files
+                    request_context['body'] = merged_body
                     # 也将 body 的字段提升到根层级，方便访问
                     # 但要避免覆盖已有字段
-                    for key, value in body.items():
+                    for key, value in merged_body.items():
                         if key not in request_context:
                             request_context[key] = value
-                    print(f"[变量解析] request body 是字典，已合并到上下文")
+                    print(f"[变量解析] request body 是字典，已合并到上下文（含文件信息）")
                 else:
-                    request_context['body'] = body
-                    print(f"[变量解析] request body 不是字典，直接赋值")
+                    # 非字典类型（如字符串 / bytes / 数组等）保持原有语义，
+                    # 只在有文件时额外挂一个字典包装，避免破坏现有用例。
+                    if files is not None:
+                        request_context['body'] = {
+                            '__raw': body,
+                            '__files': files,
+                        }
+                        print(f"[变量解析] request body 非字典，使用包装结构保存原始值和文件信息")
+                    else:
+                        request_context['body'] = body
+                        print(f"[变量解析] request body 不是字典，直接赋值")
                 
                 print(f"[变量解析] 最终 request_context: {request_context}")
                 
@@ -365,8 +391,18 @@ class VariableManager:
         """
         if isinstance(body, dict):
             # 检查是否是 ParamValue 格式
-            if 'valueType' in body and 'value' in body:
-                # 这是 ParamValue，解析它
+            # 🚩 兼容 AI / 历史数据：
+            # - variable 类型可能只有 {valueType, variable}（没有 value）
+            # - fixed  类型可能只有 {valueType, value}
+            # 为避免误判普通业务字段（刚好叫 valueType），同时要求：
+            # 1) valueType 值必须是 fixed/variable
+            # 2) 且至少包含 value/variable/template 之一
+            if (
+                'valueType' in body
+                and body.get('valueType') in (ValueType.FIXED, ValueType.VARIABLE, 'fixed', 'variable')
+                and ('value' in body or 'variable' in body or 'template' in body)
+            ):
+                # 这是 ParamValue，解析它（支持 variable-only 结构）
                 resolved = self.resolve_param_value(body)
                 print(f"[Body解析] ParamValue -> {type(resolved)}: {resolved if not isinstance(resolved, (dict, list)) or len(str(resolved)) < 100 else str(resolved)[:100] + '...'}")
                 
