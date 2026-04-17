@@ -74,11 +74,11 @@ const UNIFIED_SYSTEM_PROMPT = `
 - \`id\`: 节点 ID，必须以 \`step_\` 开头，如 "step_1", "step_2", "step_login"
 - \`type\`: "api" 或 "assertion"
 - \`apiId\`: 使用的 API ID（从 get_api_detail 获取）
+- \`assertions\`: 断言列表（**每个 API 节点必须包含断言，不可省略**）
 
 **可选字段**：
 - \`params\`: 参数配置（支持固定值）
 - \`variableRefs\`: 变量引用列表
-- \`assertions\`: 断言列表
 - \`wait\`: 等待配置
 - \`isCleanup\`: 是否为清理节点（默认 false）
 
@@ -187,7 +187,9 @@ const UNIFIED_SYSTEM_PROMPT = `
 - 在使用前，应该将路径参数化为 \`/api/v1/device/device-credential/{id}\`
 - 然后配置 variableRefs: \`pathParams.id\`
 
-### 断言配置（assertions）
+### 断言配置（assertions）—— ⚠️ 必填
+
+**🚨 强制规则：每个 API 节点（type: "api"）都必须包含 assertions 字段，且不能为空数组。没有断言的节点是无效的。**
 
 \`\`\`json
 {
@@ -223,6 +225,16 @@ const UNIFIED_SYSTEM_PROMPT = `
   - ❌ 错误：\`"data.0.name"\`、\`"returnObject.0.0"\`（不要用点号访问数组索引）
   - ✅ 正确：\`"data[0].name"\`、\`"returnObject[0][0]"\`（使用 \`[index]\` 语法）
 
+**🚨 每个 API 节点的断言最低标准（至少 1 条 status 断言）**：
+
+\`\`\`json
+[
+  { "field": "status", "operator": "equals", "expected": 200, "expectedType": "number" }
+]
+\`\`\`
+
+如果接口有业务码（如 returnCode），建议额外添加业务码断言；如果节点的响应数据被后续步骤引用，建议添加该字段的 exists 断言。但这些不是强制的，**唯一强制的是每个节点至少有 1 条 status 断言**。
+
 **常用断言模板（注意：HTTP 只表示通信成功，业务成功/失败由响应体中的业务码决定，例如 \`returnCode\`）**：
 
 正常用例（业务成功）：
@@ -245,6 +257,7 @@ const UNIFIED_SYSTEM_PROMPT = `
 \`\`\`
 
 **重要约束：**
+- **每个 API 节点必须有断言，包括清理节点**，绝对不能省略或留空
 - 对于“参数为空/格式错误/业务校验失败”等业务错误场景，**不要**使用 \`status != 200\` 或 \`status == 400/500\` 来表达失败；
 - 只有当用户在需求中**明确说明**该接口会通过 HTTP 状态码返回错误（如“接口返回 400/401/500”）时，才可以使用 \`status != 200\` 或特定 4xx/5xx 状态码进行断言；
 - 默认情况下：HTTP \`status == 200\` 仅表示通信成功，业务成功/失败一律通过响应体中的业务码（如 \`returnCode\`）与提示信息（如 \`returnMsg\`）进行断言。
@@ -479,6 +492,7 @@ const UNIFIED_SYSTEM_PROMPT = `
 - 只生成用户明确提到的步骤和发散出的异常测试点
 - 不要自动添加用户没提到的接口（如登录）
 - 不生成参数验证、边界情况
+- **每个 API 节点都必须包含断言**，包括中间步骤和清理节点
 
 
 **标签**：["E2E测试", "流程测试", "AI生成"]
@@ -619,6 +633,9 @@ const UNIFIED_SYSTEM_PROMPT = `
       "sourcePath": "response.data.id"
     }
   ],
+  "assertions": [
+    { "field": "status", "operator": "equals", "expected": 200, "expectedType": "number" }
+  ],
   "isCleanup": true
 }
 \`\`\`
@@ -701,6 +718,11 @@ const UNIFIED_SYSTEM_PROMPT = `
 ### 6. 不要传递 apiDetails
 - 后端会根据 apiId 自动查询 API 详情
 - 这样可以大幅减少 JSON 大小，避免 token 超限
+
+### 7. 断言不可省略
+- **每个 API 节点（包括清理节点）都必须包含 assertions 字段**
+- 每个节点至少 1 条 status 断言
+- 有业务码的接口建议额外添加业务码断言，但不强制
 
 ## 🎯 总结
 

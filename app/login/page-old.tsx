@@ -123,7 +123,7 @@ export default function LoginPage() {
               <div>
                 <h3 className="text-base font-semibold text-white mb-1">智能 API 录制</h3>
                 <p className="text-sm text-gray-400 leading-relaxed">
-                  浏览器插件 + HAR 导入双模式，自动捕获所有 API 请求，零配置快速构建测试用例
+                  浏览器插件 + HAR 导入双模式，自动捕获所有 API 请求，零配置快速构建 API 仓库
                 </p>
               </div>
             </div>

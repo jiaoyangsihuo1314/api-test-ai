@@ -122,6 +122,7 @@ export async function PUT(
       useGlobalSettings,
       environmentConfig,
       testCases,
+      runMode,
       executionMode,
       scheduleConfig,
       scheduleStatus,
@@ -141,6 +142,10 @@ export async function PUT(
       environmentConfig: environmentConfig || null,
       ...(userId && { updatedBy: userId }),
     };
+
+    if (runMode !== undefined) {
+      updateData.runMode = runMode;
+    }
 
     // 如果有调度相关字段，也更新它们
     if (executionMode !== undefined) {

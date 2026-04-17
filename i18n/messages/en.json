@@ -845,7 +845,13 @@
     "newYorkTime": "US Eastern Time (UTC-5)",
     "losAngelesTime": "US Pacific Time (UTC-8)",
     "londonTime": "UK Time (UTC+0)",
-    "parisTime": "Central European Time (UTC+1)"
+    "parisTime": "Central European Time (UTC+1)",
+    "runModeTitle": "Run Mode",
+    "runModeDesc": "Select the execution mode for test cases",
+    "runModeSerial": "Serial",
+    "runModeParallel": "Parallel",
+    "runModeSerialDesc": "Execute test cases one by one in order",
+    "runModeParallelDesc": "Execute all test cases simultaneously"
   },
   "testOrchestration": {
     "title": "Test Orchestration",
@@ -1549,7 +1555,7 @@
     "platformSubtitle": "From Thinking to Execution",
     "platformDescription": "API Intelligent Testing Platform is a next-generation AI-driven visual API test orchestration platform that makes test case creation, management, and execution unprecedentedly simple.",
     "feature1Title": "Smart API Collection",
-    "feature1Desc": "Three modes: browser extension + proxy + HAR import. Automatically capture all API requests, zero-config to quickly build your test case library",
+    "feature1Desc": "Three modes: browser extension + proxy + HAR import. Automatically capture all API requests, zero-config to quickly build your API repository",
     "feature2Title": "AI Smart Generation",
     "feature2Desc": "Conversational test case generation, AI automatically understands business requirements, intelligently orchestrates complex test flows",
     "feature3Title": "Visual Orchestration",

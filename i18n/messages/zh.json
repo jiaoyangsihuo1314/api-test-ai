@@ -845,7 +845,13 @@
     "newYorkTime": "美国东部时间 (UTC-5)",
     "losAngelesTime": "美国太平洋时间 (UTC-8)",
     "londonTime": "英国时间 (UTC+0)",
-    "parisTime": "欧洲中部时间 (UTC+1)"
+    "parisTime": "欧洲中部时间 (UTC+1)",
+    "runModeTitle": "运行模式",
+    "runModeDesc": "选择测试用例的执行方式",
+    "runModeSerial": "串行",
+    "runModeParallel": "并行",
+    "runModeSerialDesc": "按顺序逐个执行测试用例",
+      "runModeParallelDesc": "并行执行测试用例"
   },
   "testOrchestration": {
     "title": "用例编排",
@@ -1549,7 +1555,7 @@
     "platformSubtitle": "从思考到执行",
     "platformDescription": "API 智能测试平台 是新一代 AI 驱动的可视化 API 测试编排平台，让测试用例的创建、管理和执行变得前所未有的简单。",
     "feature1Title": "智能 API 采集",
-    "feature1Desc": "浏览器插件 + 代理 + HAR 导入 三种模式，自动捕获所有 API 请求，零配置快速构建测试用例库",
+    "feature1Desc": "浏览器插件 + 代理 + HAR 导入 三种模式，自动捕获所有 API 请求，零配置快速构建 API 仓库",
     "feature2Title": "AI 智能生成",
     "feature2Desc": "对话式生成测试用例，AI 自动理解业务需求，智能编排复杂测试流程",
     "feature3Title": "可视化编排",

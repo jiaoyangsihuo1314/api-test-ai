@@ -336,6 +336,9 @@ model TestSuite {
   successCount Int @default(0)
   failCount    Int @default(0)
   
+  // 运行模式
+  runMode String @default("serial") // serial: 串行, parallel: 并行
+  
   // 调度配置
   executionMode     String    @default("manual") // manual: 手动执行, scheduled: 定时执行
   scheduleConfig    String? // JSON格式的调度配置

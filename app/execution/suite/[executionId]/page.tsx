@@ -74,27 +74,59 @@ export default function SuiteExecutionPage() {
   const [isStoppingOrRetrying, setIsStoppingOrRetrying] = useState(false);
 
   useEffect(() => {
-    loadExecution();
+    // 首屏使用轻量 summary，避免 full 详情（stepExecutions + 大量 JSON 解析）导致加载过慢
+    loadExecution('summary');
   }, [executionId]);
 
   useEffect(() => {
-    // 如果执行中，轮询更新
     if (execution && (execution.status === 'pending' || execution.status === 'running')) {
       const interval = setInterval(() => {
-        loadExecution();
-      }, 1000);
+        loadExecution('summary');
+      }, 3000);
 
       return () => clearInterval(interval);
     }
   }, [execution?.status]);
 
-  const loadExecution = async () => {
+  const loadExecution = async (mode: 'full' | 'summary' = 'full') => {
     try {
-      const response = await fetch(`/api/executions/suite/${executionId}`);
+      const url = mode === 'summary'
+        ? `/api/executions/suite/${executionId}?detail=summary`
+        : `/api/executions/suite/${executionId}`;
+      const response = await fetch(url);
       const result = await response.json();
 
       if (result.success) {
-        setExecution(result.data);
+        if (mode === 'summary' && execution) {
+          setExecution((prev) => {
+            if (!prev) return result.data;
+            return {
+              ...prev,
+              status: result.data.status,
+              endTime: result.data.endTime,
+              duration: result.data.duration,
+              passedCases: result.data.passedCases,
+              failedCases: result.data.failedCases,
+              passedSteps: result.data.passedSteps,
+              failedSteps: result.data.failedSteps,
+              caseExecutions: result.data.caseExecutions.map((ce: any) => {
+                const existing = prev.caseExecutions.find((e) => e.id === ce.id);
+                return {
+                  ...ce,
+                  testCaseSnapshot: existing?.testCaseSnapshot ?? ce.testCaseSnapshot ?? null,
+                  stepExecutions: existing?.stepExecutions ?? ce.stepExecutions ?? [],
+                };
+              }),
+            };
+          });
+        } else {
+          setExecution(result.data);
+        }
+
+        // 执行结束后补拉一次 full，用于展示完整 stepExecutions 等详情
+        if (result.data.status !== 'pending' && result.data.status !== 'running' && mode === 'summary') {
+          loadExecution('full');
+        }
       } else {
         throw new Error(result.error);
       }

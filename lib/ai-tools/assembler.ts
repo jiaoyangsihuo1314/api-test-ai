@@ -17,6 +17,7 @@ import {
   FlowNode,
   FlowEdge,
   ApiNodeData,
+  Assertion,
   ParamValue,
   RequestConfig,
 } from '@/types/test-case';
@@ -260,6 +261,51 @@ function buildRequestConfig(
 }
 
 /**
+ * 为缺少断言的 API 节点生成默认断言
+ */
+function generateDefaultAssertions(api: ApiMetadata, nodePlan: ApiNodePlan): Assertion[] {
+  return [
+    {
+      field: 'status',
+      operator: 'equals',
+      expected: 200,
+      expectedType: 'number',
+    },
+  ];
+}
+
+/**
+ * 确保断言列表至少包含 status 校验；如果为空则自动生成默认断言
+ */
+function ensureAssertions(
+  assertions: Assertion[] | undefined,
+  api: ApiMetadata,
+  nodePlan: ApiNodePlan
+): Assertion[] {
+  if (!assertions || assertions.length === 0) {
+    const defaults = generateDefaultAssertions(api, nodePlan);
+    console.log(`  ⚠️ [组装引擎] 节点 ${nodePlan.id} 缺少断言，已自动补充 ${defaults.length} 条默认断言`);
+    return defaults;
+  }
+
+  const hasStatusAssertion = assertions.some(
+    a => a.field === 'status' || a.field === 'responseStatus'
+  );
+  if (!hasStatusAssertion) {
+    const statusAssertion: Assertion = {
+      field: 'status',
+      operator: 'equals',
+      expected: 200,
+      expectedType: 'number',
+    };
+    console.log(`  ⚠️ [组装引擎] 节点 ${nodePlan.id} 缺少 status 断言，已自动补充`);
+    return [statusAssertion, ...assertions];
+  }
+
+  return assertions;
+}
+
+/**
  * 构建 API 节点
  */
 function buildApiNode(
@@ -268,16 +314,17 @@ function buildApiNode(
   position: { x: number; y: number }
 ): FlowNode {
   const requestConfig = buildRequestConfig(api, nodePlan);
+  const finalAssertions = ensureAssertions(nodePlan.assertions, api, nodePlan);
 
   const nodeData: ApiNodeData = {
     apiId: api.id,
     name: api.name,
     method: api.method,
-    url: api.path, // ⚠️ 使用 path 而不是 url
+    url: api.path,
     requestConfig,
-    assertions: nodePlan.assertions || [],
-    responseExtract: [], // 不需要预先提取变量
-    wait: nodePlan.wait, // 等待配置
+    assertions: finalAssertions,
+    responseExtract: [],
+    wait: nodePlan.wait,
     isCleanup: nodePlan.isCleanup || false,
   };
 

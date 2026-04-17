@@ -548,12 +548,30 @@ export const AI_TOOLS = [
                           },
                           assertions: {
                             type: "array",
-                            description: "断言列表",
-                            items: { type: "object" }
+                            description: "断言列表（必填，每个 API 节点至少包含 1 条 status 断言）",
+                            minItems: 1,
+                            items: {
+                              type: "object",
+                              properties: {
+                                field: { type: "string", description: "字段路径，如 status、returnCode、data.id" },
+                                operator: {
+                                  type: "string",
+                                  enum: ["equals", "notEquals", "contains", "notContains", "greaterThan", "lessThan", "exists", "notExists"],
+                                  description: "比较操作符"
+                                },
+                                expected: { description: "期望值（exists/notExists 时可省略）" },
+                                expectedType: {
+                                  type: "string",
+                                  enum: ["string", "number", "boolean", "object", "array", "auto"],
+                                  description: "期望值类型"
+                                }
+                              },
+                              required: ["field", "operator"]
+                            }
                           },
                           isCleanup: { type: "boolean", description: "是否为清理节点" }
                         },
-                        required: ["id", "type"]
+                        required: ["id", "type", "assertions"]
                       }
                     },
                     edges: {
