@@ -580,10 +580,50 @@ export default function TestCaseList({
     return [p0, p1, p2, p3].filter(Boolean).join(' / ');
   };
 
+  // 压缩分类筛选条件：如果父级已选中，则不再重复传其子级，避免后端 OR 条件爆炸
+  const minimizeCategoryKeysForRequest = (keys: string[]): string[] => {
+    const cleaned = Array.from(
+      new Set(
+        keys
+          .map((key) =>
+            key
+              .split(' / ')
+              .map((p) => p.trim())
+              .filter(Boolean)
+              .join(' / ')
+          )
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.split(' / ').length - b.split(' / ').length);
+
+    const result: string[] = [];
+
+    const isAncestorOrSelf = (ancestor: string, target: string) => {
+      const ancestorParts = ancestor.split(' / ');
+      const targetParts = target.split(' / ');
+      if (ancestorParts.length > targetParts.length) return false;
+      for (let i = 0; i < ancestorParts.length; i++) {
+        if (ancestorParts[i] !== targetParts[i]) return false;
+      }
+      return true;
+    };
+
+    for (const key of cleaned) {
+      const coveredByExistingParent = result.some((parent) => isAncestorOrSelf(parent, key));
+      if (!coveredByExistingParent) {
+        result.push(key);
+      }
+    }
+
+    return result;
+  };
+
   // 选中分类变化时通知父组件做服务端查询
   useEffect(() => {
     if (!onApiCategoryKeysChange) return;
-    const keys = Array.from(selectedApiCategories).map(normalizeCategoryKeyForRequest);
+    const keys = minimizeCategoryKeysForRequest(
+      Array.from(selectedApiCategories).map(normalizeCategoryKeyForRequest)
+    );
     onApiCategoryKeysChange(keys);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedApiCategories]);
