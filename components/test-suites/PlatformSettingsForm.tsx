@@ -18,6 +18,11 @@ export interface PlatformSettingsFormData {
   authTokenEnabled: boolean;
   authTokenKey: string;
   authTokenValue: string;
+  tokenLoginApiUrl: string;
+  tokenLoginMethod: string;
+  tokenLoginRequestHeaders: Record<string, string>;
+  tokenLoginRequestBody: Record<string, any>;
+  tokenResponsePath: string;
 
   // Session模式
   sessionEnabled: boolean;

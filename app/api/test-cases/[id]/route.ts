@@ -143,9 +143,29 @@ export async function PUT(
       stepsCount: steps?.length
     });
 
+    // 先读取当前用例，避免前端未传 priority 时被默认覆盖成 P2
+    logger.db(OperationType.READ, 'TestCase', 'findUnique', { id });
+    const existingTestCase = await prisma.testCase.findUnique({
+      where: { id },
+      select: { priority: true },
+    });
+
+    if (!existingTestCase) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Test case not found',
+        },
+        { status: 404 }
+      );
+    }
+
     // 清理 flowConfig 中的执行结果（后端保护层）
     const cleanedFlowConfig = cleanExecutionFromFlowConfig(flowConfig);
-    const normalizedPriority = normalizePriority(priority);
+    const normalizedPriority =
+      priority == null || priority === ''
+        ? existingTestCase.priority
+        : normalizePriority(priority);
 
     // 使用事务确保删除和更新操作的原子性
     logger.db(OperationType.UPDATE, 'TestCase', 'transaction', { id, name, stepsCount: steps?.length });
