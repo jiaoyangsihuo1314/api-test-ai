@@ -290,6 +290,15 @@ export function ApiList({ apis, onDelete, onClearAll, onViewDetail, onBatchSave 
                   </div>
                 </div>
                   <div className="flex items-center gap-2 flex-shrink-0 ml-4">
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={() => onDelete(originalIndex)}
+                      className="hover:bg-destructive/10"
+                      aria-label={t('delete')}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                     {onViewDetail && (
                       <Button 
                         size="sm" 
@@ -299,14 +308,6 @@ export function ApiList({ apis, onDelete, onClearAll, onViewDetail, onBatchSave 
                         {t('viewDetails')}
                       </Button>
                     )}
-                    <Button 
-                      size="sm" 
-                      variant="ghost"
-                      onClick={() => onDelete(originalIndex)}
-                      className="hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
                   </div>
                 </div>
               </div>

@@ -87,6 +87,36 @@ export default function ExecutionPage() {
     router.push(`/execution/suite/${executionId}/logs`);
   };
 
+  const handleDeleteExecution = async (executionId: string) => {
+    if (!confirm(t('deleteExecutionConfirm'))) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/executions/suite/${executionId}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          title: t('operationSuccess'),
+          description: t('deleteExecutionSuccess'),
+        });
+        loadExecutions();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error('删除执行记录失败:', error);
+      toast({
+        title: t('operationFailed'),
+        description: t('deleteExecutionFailed'),
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleStop = async (executionId: string) => {
     try {
       const response = await fetch(`/api/executions/suite/${executionId}/stop`, {
@@ -330,6 +360,14 @@ export default function ExecutionPage() {
                         >
                           <FileText className="h-4 w-4 mr-1" />
                           {t('viewLogs')}
+                        </Button>
+                        <Button 
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteExecution(execution.id)}
+                          aria-label={t('deleteExecution')}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                         <Button 
                           size="sm"

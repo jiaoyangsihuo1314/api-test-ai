@@ -162,7 +162,7 @@
 - 同步创建/更新 `TestStep` 记录（api 节点对应 step）
 
 **执行逻辑**：
-- 前端调用 Python 执行器：`getExecutorUrl()` 默认 `http://localhost:18014`
+- 前端调用 Python 执行器：`getExecutorUrl()` 默认 `http://localhost:18015`
 - 发送 `flowConfig` 到执行器，执行器按拓扑顺序执行节点
 - 支持变量提取：从响应中 `response.data.id` 等路径取值，注入到后续步骤
 - 支持后置清理节点：`isCleanup: true` 的节点在用例主体完成后执行

@@ -642,7 +642,7 @@ if __name__ == "__main__":
     
     # 从环境变量读取配置
     host = os.getenv("API_HOST", "0.0.0.0")
-    port = int(os.getenv("API_PORT", "18014"))
+    port = int(os.getenv("API_PORT", "18015"))
     
     print(f"🚀 启动测试执行器 API")
     print(f"📍 地址: http://{host}:{port}")

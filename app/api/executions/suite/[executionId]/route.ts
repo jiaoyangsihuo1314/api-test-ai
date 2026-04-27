@@ -111,6 +111,40 @@ async function getSummary(executionId: string) {
   return response;
 }
 
+// DELETE /api/executions/suite/[executionId] - 删除执行记录
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ executionId: string }> }
+) {
+  try {
+    const { executionId } = await params;
+
+    const execution = await prisma.testSuiteExecution.findUnique({
+      where: { id: executionId },
+      select: { id: true },
+    });
+
+    if (!execution) {
+      return NextResponse.json(
+        { success: false, error: 'Execution not found' },
+        { status: 404 }
+      );
+    }
+
+    await prisma.testSuiteExecution.delete({
+      where: { id: executionId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting execution:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to delete execution' },
+      { status: 500 }
+    );
+  }
+}
+
 /** 完整模式：含 stepExecutions 和全量 JSON 解析 */
 async function getFullDetail(executionId: string) {
   const execution = await prisma.testSuiteExecution.findUnique({
