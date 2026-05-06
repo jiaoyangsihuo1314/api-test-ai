@@ -323,7 +323,9 @@ export default function ExecutionPage() {
                                   ? t('manual') 
                                   : execution.triggeredBy === 'schedule' 
                                     ? t('schedule') 
-                                    : execution.triggeredBy
+                                    : execution.triggeredBy === 'retry'
+                                      ? t('retry')
+                                      : execution.triggeredBy
                               }
                             </span>
                           )}

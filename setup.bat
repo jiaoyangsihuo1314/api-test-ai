@@ -185,7 +185,7 @@ echo  终端2: cd executor && python main.py
 echo.
 echo 访问地址：
 echo  前端: http://localhost:3009
-echo  API: http://localhost:18015/docs
+echo  API: http://192.168.10.113:18015/docs
 echo.
 
 pause

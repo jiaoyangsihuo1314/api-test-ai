@@ -267,9 +267,17 @@ export default function SuiteExecutionPage() {
   const filteredCaseExecutions = useMemo(() => {
     if (!execution) return [];
     const nameKeyword = caseNameFilter.trim().toLowerCase();
+
+    const normalizeStatus = (status: string) => {
+      if (status === 'completed' || status === 'success') return 'passed';
+      return status;
+    };
+
+    const selectedStatus = normalizeStatus(statusFilter);
+
     return execution.caseExecutions.filter((caseExec) => {
       const matchesName = nameKeyword ? caseExec.testCaseName.toLowerCase().includes(nameKeyword) : true;
-      const matchesStatus = statusFilter === 'all' ? true : caseExec.status === statusFilter;
+      const matchesStatus = statusFilter === 'all' ? true : normalizeStatus(caseExec.status) === selectedStatus;
       return matchesName && matchesStatus;
     });
   }, [execution, caseNameFilter, statusFilter]);
@@ -462,7 +470,7 @@ export default function SuiteExecutionPage() {
                   <SelectContent>
                     <SelectItem value="all">{t('allStatuses')}</SelectItem>
                     <SelectItem value="running">{t('running')}</SelectItem>
-                    <SelectItem value="completed">{t('success')}</SelectItem>
+                    <SelectItem value="passed">{t('success')}</SelectItem>
                     <SelectItem value="failed">{t('failed')}</SelectItem>
                     <SelectItem value="pending">{t('pending')}</SelectItem>
                     <SelectItem value="stopped">{t('stopped')}</SelectItem>
