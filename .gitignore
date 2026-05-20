@@ -101,3 +101,4 @@ proxy-server/venv/
 executor/venv/
 **/__pycache__/
 *.pyc
+prisma/dev.db
