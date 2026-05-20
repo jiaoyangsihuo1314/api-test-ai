@@ -79,6 +79,8 @@ interface TestCase {
 
 interface TestCaseListProps {
   testCases: TestCase[];
+  statusFilter: 'all' | 'draft' | 'active' | 'archived';
+  onStatusFilterChange: (status: 'all' | 'draft' | 'active' | 'archived') => void;
   /** API仓库分类筛选变化（平台/组件/功能），传给父组件做服务端查询 */
   onApiCategoryKeysChange?: (keys: string[]) => void;
   onCreateNew: () => void;
@@ -91,6 +93,8 @@ interface TestCaseListProps {
 
 export default function TestCaseList({
   testCases,
+  statusFilter,
+  onStatusFilterChange,
   onApiCategoryKeysChange,
   onCreateNew,
   onEdit,
@@ -103,7 +107,6 @@ export default function TestCaseList({
   const tCommon = useTranslations('common');
   const tCaseTree = useTranslations('testSuites.categoryTree');
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -727,17 +730,16 @@ export default function TestCaseList({
     );
   };
 
-  // 筛选和搜索（前端筛选，但分页由服务端处理）
+  // 搜索和局部筛选在前端处理，状态和分类分页由服务端处理
   const filteredTestCases = testCases.filter((testCase) => {
     const tags = parseTags(testCase.tags);
     const matchesSearch = testCase.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       testCase.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesStatus = statusFilter === 'all' || testCase.status === statusFilter;
     const matchesTag = selectedTag === 'all' || tags.includes(selectedTag);
     const matchesPriority =
       priorityFilter === 'all' || (testCase.priority || 'P2') === priorityFilter;
-    return matchesSearch && matchesStatus && matchesTag && matchesPriority;
+    return matchesSearch && matchesTag && matchesPriority;
   });
 
   // 加载API仓库分类数据
@@ -1020,7 +1022,10 @@ export default function TestCaseList({
           </Select>
 
           {/* 状态筛选 */}
-          <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+          <Tabs
+            value={statusFilter}
+            onValueChange={(value) => onStatusFilterChange(value as 'all' | 'draft' | 'active' | 'archived')}
+          >
             <TabsList className="h-9">
               <TabsTrigger value="all" className="text-xs px-3">{t('all')}</TabsTrigger>
               <TabsTrigger value="draft" className="text-xs px-3">{t('draft')}</TabsTrigger>
@@ -1041,7 +1046,7 @@ export default function TestCaseList({
               onClick={() => {
                 setSearchQuery('');
                 setSelectedTag('all');
-                setStatusFilter('all');
+                onStatusFilterChange('all');
                 setPriorityFilter('all');
                 setSelectedApiCategories(new Set());
               }}
@@ -1351,4 +1356,3 @@ export default function TestCaseList({
     </div>
   );
 }
-

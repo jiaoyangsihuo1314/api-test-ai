@@ -63,6 +63,8 @@ export default function VariableSelector({
 
               newCache[nodeData.apiId] = {
                 ...apiData,
+                requestQuery: parseJsonField(apiData.requestQuery),
+                requestBody: parseJsonField(apiData.requestBody),
                 responseBody: parseJsonField(apiData.responseBody),
               };
             }
@@ -160,16 +162,39 @@ export default function VariableSelector({
                 </span>
               </Button>
 
-              {isExpanded && (
+              {isExpanded && (() => {
+                const apiInfo = apiInfoCache[nodeData.apiId];
+
+                // 请求参数键：优先使用已配置的，兜底从API定义获取
+                const pathParamKeys = (() => {
+                  const configured = nodeData.requestConfig?.pathParams;
+                  if (configured && Object.keys(configured).length > 0) return Object.keys(configured);
+                  if (!apiInfo?.path) return [];
+                  const matches = apiInfo.path.match(/\{(\w+)\}/g);
+                  return matches ? matches.map((m: string) => m.slice(1, -1)) : [];
+                })();
+                const queryParamKeys = (() => {
+                  const configured = nodeData.requestConfig?.queryParams;
+                  if (configured && Object.keys(configured).length > 0) return Object.keys(configured);
+                  return Object.keys(apiInfo?.requestQuery || {});
+                })();
+                const bodyKeys = (() => {
+                  const configured = nodeData.requestConfig?.body;
+                  if (configured && Object.keys(configured).length > 0) return Object.keys(configured);
+                  return Object.keys(apiInfo?.requestBody || {});
+                })();
+                const hasRequestParams = pathParamKeys.length > 0 || queryParamKeys.length > 0 || bodyKeys.length > 0;
+
+                return (
                 <div className="ml-6 space-y-1">
                   {/* 请求参数 */}
-                  <div className="text-xs font-semibold text-muted-foreground mt-2 mb-1 px-1">
-                    📥 请求参数
-                  </div>
-                  <div className="ml-2 space-y-0.5">
-                    {nodeData.requestConfig?.pathParams &&
-                      Object.keys(nodeData.requestConfig.pathParams).map(
-                        (key) => (
+                  {hasRequestParams && (
+                    <>
+                      <div className="text-xs font-semibold text-muted-foreground mt-2 mb-1 px-1">
+                        📥 请求参数
+                      </div>
+                      <div className="ml-2 space-y-0.5">
+                        {pathParamKeys.map((key) => (
                           <Button
                             key={`path-${key}`}
                             variant="ghost"
@@ -189,11 +214,8 @@ export default function VariableSelector({
                               pathParams.{key}
                             </code>
                           </Button>
-                        )
-                      )}
-                    {nodeData.requestConfig?.queryParams &&
-                      Object.keys(nodeData.requestConfig.queryParams).map(
-                        (key) => (
+                        ))}
+                        {queryParamKeys.map((key) => (
                           <Button
                             key={`query-${key}`}
                             variant="ghost"
@@ -213,11 +235,8 @@ export default function VariableSelector({
                               queryParams.{key}
                             </code>
                           </Button>
-                        )
-                      )}
-                    {nodeData.requestConfig?.body &&
-                      Object.keys(nodeData.requestConfig.body).map(
-                        (key) => (
+                        ))}
+                        {bodyKeys.map((key) => (
                           <Button
                             key={`body-${key}`}
                             variant="ghost"
@@ -237,9 +256,10 @@ export default function VariableSelector({
                               body.{key}
                             </code>
                           </Button>
-                        )
-                      )}
-                  </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
 
                   {/* 响应参数 */}
                   <div className="text-xs font-semibold text-muted-foreground mt-3 mb-1 px-1">
@@ -247,35 +267,30 @@ export default function VariableSelector({
                   </div>
                   <div className="ml-2 space-y-0.5">
                     {/* 从 API 库中获取的响应字段 */}
-                    {(() => {
-                      const apiInfo = apiInfoCache[nodeData.apiId];
-                      if (apiInfo?.responseBody) {
-                        const fields = parseResponseFields(apiInfo.responseBody);
-                        return fields.map((fieldPath) => (
-                          <Button
-                            key={`response-${fieldPath}`}
-                            variant="ghost"
-                            size="sm"
-                            className="w-full justify-start h-8 text-xs hover:bg-muted/50 px-2"
-                            onClick={() =>
-                              handleSelect(
-                                buildVariablePath(
-                                  node.id,
-                                  'response',
-                                  fieldPath
-                                )
+                    {apiInfo?.responseBody ? (
+                      parseResponseFields(apiInfo.responseBody).map((fieldPath) => (
+                        <Button
+                          key={`response-${fieldPath}`}
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start h-8 text-xs hover:bg-muted/50 px-2"
+                          onClick={() =>
+                            handleSelect(
+                              buildVariablePath(
+                                node.id,
+                                'response',
+                                fieldPath
                               )
-                            }
-                          >
-                            <code className="text-xs font-mono text-foreground break-all text-left">
-                              response.{fieldPath}
-                            </code>
-                          </Button>
-                        ));
-                      }
-                      return null;
-                    })()}
-                    
+                            )
+                          }
+                        >
+                          <code className="text-xs font-mono text-foreground break-all text-left">
+                            response.{fieldPath}
+                          </code>
+                        </Button>
+                      ))
+                    ) : null}
+
                     {/* 始终显示 HTTP 状态码 */}
                     <Button
                       variant="ghost"
@@ -291,7 +306,8 @@ export default function VariableSelector({
                     </Button>
                   </div>
                 </div>
-              )}
+                );
+              })()}
             </div>
           );
         })

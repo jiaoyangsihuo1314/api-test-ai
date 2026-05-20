@@ -127,12 +127,12 @@ const UNIFIED_SYSTEM_PROMPT = `
     {
       "paramPath": "pathParams.userId",        // 要设置的参数路径
       "sourceNode": "step_1",                  // 源节点 ID
-      "sourcePath": "response.data.id"         // 源数据路径
+      "sourcePath": "response.returnObject.id" // 源数据路径（必须匹配 get_api_detail 返回的实际 responseBody 结构）
     },
     {
       "paramPath": "headers.Authorization",    // 认证头
       "sourceNode": "step_login",
-      "sourcePath": "response.data.token",
+      "sourcePath": "response.token",
       "template": "Bearer {value}"             // 值模板（可选）
     },
     {
@@ -153,14 +153,21 @@ const UNIFIED_SYSTEM_PROMPT = `
 - 请求体：\`body.username\`、\`body.user.id\`（支持嵌套）
 
 **支持的数据源**：
-- 响应体：\`response.data.id\`、\`response.data.user.name\`（支持嵌套）
+- 响应体：\`response.returnObject.id\`、\`response.returnObject.user.name\`（支持嵌套）
 - 响应状态：\`response.status\`
 - 响应头：\`response.headers.content-type\`
 - 请求体：\`request.body.username\`（重用请求数据）
 - 请求头：\`request.headers.authorization\`
 - 路径参数：\`request.pathParams.id\`
 - 查询参数：\`request.params.page\`（推荐）或 \`request.queryParams.page\`（兼容）
-- ⚠️ 数组取值用方括号：\`response.data.items[0].id\`、\`response.returnObject[0][0]\`
+- ⚠️ 数组取值用方括号：\`response.items[0].id\`、\`response.returnObject[0][0]\`
+
+**🚨 sourcePath 路径必须匹配实际 API 响应结构**：
+- **禁止**随意添加 \`data.\` 前缀！路径必须严格按照 \`get_api_detail\` 返回的 \`responseBody\` 结构来构造
+- 正确做法：先调用 \`get_api_detail\` 查看 \`responseBody\`，按**实际字段层级**构造路径
+  - 如果 responseBody 是 \`{ "returnObject": { "id": 123 }, "returnMsg": "success" }\`，路径应写 \`response.returnObject.id\`（❌ 不要写 \`response.data.returnObject.id\`）
+  - 如果 responseBody 是 \`{ "data": { "id": 123 } }\`（该 API 返回体恰好包裹了 data 字段），路径才写 \`response.data.id\`
+  - 如果 responseBody 顶层就是目标字段如 \`{ "token": "xxx" }\`，路径直接写 \`response.token\`（❌ 不要写 \`response.data.token\`）
 
 **重要规则**：
 - variableRefs 会覆盖 params 中的同名字段
@@ -201,7 +208,7 @@ const UNIFIED_SYSTEM_PROMPT = `
       "expectedType": "number"              // 期望类型
     },
     {
-      "field": "data.id",                   // 简化路径（默认从 responseBody 开始）
+      "field": "returnObject.id",            // 简化路径（默认从 responseBody 开始，字段路径必须匹配实际 responseBody 结构）
       "operator": "exists"                  // exists 和 notExists 不需要 expected
     }
   ]
@@ -219,11 +226,11 @@ const UNIFIED_SYSTEM_PROMPT = `
 8. \`notExists\` - 字段不存在
 
 **字段路径规则**：
-- 简化写法（推荐）：\`"code"\`、\`"data.id"\`（默认从 responseBody 开始）
+- 简化写法（推荐）：\`"code"\`、\`"returnObject.id"\`（默认从 responseBody 开始）
 - 完整写法：\`"status"\`（HTTP 状态码）、\`"responseBody.code"\`、\`"responseHeaders.content-type"\`
-- ⚠️ **数组访问必须使用方括号语法**：\`"data[0].name"\`、\`"returnObject[0][0]"\`
-  - ❌ 错误：\`"data.0.name"\`、\`"returnObject.0.0"\`（不要用点号访问数组索引）
-  - ✅ 正确：\`"data[0].name"\`、\`"returnObject[0][0]"\`（使用 \`[index]\` 语法）
+- ⚠️ **数组访问必须使用方括号语法**：\`"returnObject[0].name"\`、\`"returnObject[0][0]"\`
+  - ❌ 错误：\`"returnObject.0.name"\`、\`"returnObject.0.0"\`（不要用点号访问数组索引）
+  - ✅ 正确：\`"returnObject[0].name"\`、\`"returnObject[0][0]"\`（使用 \`[index]\` 语法）
 
 **🚨 每个 API 节点的断言最低标准（至少 1 条 status 断言）**：
 
@@ -242,7 +249,7 @@ const UNIFIED_SYSTEM_PROMPT = `
 [
   { "field": "status", "operator": "equals", "expected": 200, "expectedType": "number" },
   { "field": "returnCode", "operator": "equals", "expected": 200, "expectedType": "number" },
-  { "field": "data.id", "operator": "exists" },
+  { "field": "returnObject.id", "operator": "exists" },
   { "field": "returnMsg", "operator": "equals", "expected": "success", "expectedType": "string" }
 ]
 \`\`\`
@@ -284,7 +291,7 @@ const UNIFIED_SYSTEM_PROMPT = `
     "timeout": 30000,                              // 最长等待时间（毫秒）
     "checkInterval": 2000,                         // 检查间隔（毫秒）
     "condition": {
-      "variable": "step_check.response.data.status",  // 检查的变量路径
+      "variable": "step_check.response.returnObject.taskStatus",  // 检查的变量路径（匹配实际 responseBody 结构）
       "operator": "equals",                        // equals | notEquals | exists
       "expected": "completed"                      // 期望值
     }
@@ -630,7 +637,7 @@ const UNIFIED_SYSTEM_PROMPT = `
     {
       "paramPath": "pathParams.id",
       "sourceNode": "step_1",
-      "sourcePath": "response.data.id"
+      "sourcePath": "response.returnObject.id"
     }
   ],
   "assertions": [

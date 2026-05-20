@@ -538,13 +538,24 @@ class TestExecutor:
             url = api_data.url
             print(f"[API执行] 节点配置的URL: {url}")
             
-            # 如果节点URL不包含占位符且数据库中有完整URL，使用数据库的
-            # 但如果包含占位符（如 {id}），则保留节点配置的URL
-            if self.database and api_data.apiId and '{' not in url:
+            # 从数据库获取完整URL的scheme+netloc（host/port）
+            # 无论节点URL是否包含占位符（如 {id}），都尝试拼接
+            if self.database and api_data.apiId:
                 api_info = self.database.get_api_by_id(api_data.apiId)
                 if api_info and api_info.get('url'):
-                    print(f"[API执行] 数据库URL: {api_info['url']}")
-                    url = api_info['url']
+                    db_url = api_info['url']
+                    print(f"[API执行] 数据库URL: {db_url}")
+
+                    if '{' in url:
+                        # 路径包含占位符：使用数据库URL的scheme+netloc（host/port），保留节点的参数化路径
+                        from urllib.parse import urlparse as _up, urlunparse as _uup
+                        parsed_db = _up(db_url)
+                        parsed_node = _up(url)
+                        url = _uup((parsed_db.scheme, parsed_db.netloc, parsed_node.path, '', '', ''))
+                        print(f"[API执行] 拼接数据库base+节点路径: {url}")
+                    else:
+                        # 路径不包含占位符：直接使用数据库完整URL（原逻辑不变）
+                        url = db_url
             
             # 解析请求配置
             resolved_config = {}
@@ -1744,13 +1755,30 @@ class TestExecutor:
                     api_config.requestConfig.dict() if hasattr(api_config.requestConfig, 'dict') else api_config.requestConfig
                 )
             
-            # 构建 URL
+            # 构建 URL - 先从数据库获取完整URL的scheme+netloc
             url = api_config.url
+            if self.database and api_config.apiId:
+                api_info = self.database.get_api_by_id(api_config.apiId)
+                if api_info and api_info.get('url'):
+                    db_url = api_info['url']
+                    print(f"[并发API] 数据库URL: {db_url}")
+
+                    if '{' in url:
+                        # 路径包含占位符：使用数据库URL的scheme+netloc，保留参数化路径
+                        from urllib.parse import urlparse as _up2, urlunparse as _uup2
+                        parsed_db = _up2(db_url)
+                        parsed_node = _up2(url)
+                        url = _uup2((parsed_db.scheme, parsed_db.netloc, parsed_node.path, '', '', ''))
+                        print(f"[并发API] 拼接数据库base+节点路径: {url}")
+                    else:
+                        # 路径不包含占位符：直接使用数据库完整URL
+                        url = db_url
+
             if resolved_config.get('pathParams'):
                 url = variable_manager.replace_url_params(
                     url, resolved_config['pathParams']
                 )
-            
+
             # 在URL替换后打印日志，显示替换后的实际URL
             print(f"[并发API] 开始执行: {api_config.name or api_config.id} ({api_config.method} {url})")
             

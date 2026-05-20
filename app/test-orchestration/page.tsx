@@ -35,6 +35,7 @@ import { Label } from '@/components/ui/label';
 
 type ViewMode = 'list' | 'edit';
 type TestCasePriority = 'P0' | 'P1' | 'P2' | 'P3';
+type TestCaseListStatusFilter = 'all' | 'draft' | 'active' | 'archived';
 
 function toTestCasePriority(value: unknown): TestCasePriority {
   return value === 'P0' || value === 'P1' || value === 'P2' || value === 'P3' ? value : 'P2';
@@ -114,6 +115,7 @@ export default function TestOrchestrationPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [listStatusFilter, setListStatusFilter] = useState<TestCaseListStatusFilter>('all');
   const [apiCategoryKeys, setApiCategoryKeys] = useState<string[]>([]); // API仓库分类筛选（平台/组件/功能）
   const pageSize = 20;
   // 记录最近一次列表查询参数，防止相同条件下重复请求导致接口被频繁刷取
@@ -210,11 +212,14 @@ export default function TestOrchestrationPage() {
     if (viewMode === 'list') {
       loadTestCases();
     }
-  }, [viewMode, page, apiCategoryKeys]);
+  }, [viewMode, page, apiCategoryKeys, listStatusFilter]);
 
   const loadTestCases = async (options?: { force?: boolean }) => {
-    // 根据当前分页与分类筛选构造查询 key，用于去重
+    // 根据当前分页与筛选条件构造查询 key，用于去重
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (listStatusFilter !== 'all') {
+      params.set('status', listStatusFilter);
+    }
     if (apiCategoryKeys.length > 0) {
       params.set('apiCategories', JSON.stringify(apiCategoryKeys));
     }
@@ -1575,6 +1580,11 @@ export default function TestOrchestrationPage() {
         <div className="flex-1 overflow-hidden">
           <TestCaseList
             testCases={testCases}
+            statusFilter={listStatusFilter}
+            onStatusFilterChange={(status) => {
+              setListStatusFilter(status);
+              setPage(1);
+            }}
             onApiCategoryKeysChange={(keys) => {
               setApiCategoryKeys(keys);
               setPage(1);
